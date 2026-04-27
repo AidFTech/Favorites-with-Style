@@ -1,0 +1,15 @@
+[package]
+name = "midirust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jni = "0.22.1"
+midir = "0.10.3"
+
+strum = "0.28.0"
+strum_macros = "0.28"
+
+[lib]
+name = "midirust"
+crate-type = ["cdylib"]

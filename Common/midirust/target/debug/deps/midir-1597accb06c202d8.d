@@ -1,0 +1,11 @@
+/media/aidan/Local Disc B/Eclipse-Java/Favorites with Style/Favorites with Style Editor/midirust/target/debug/deps/midir-1597accb06c202d8.d: /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/lib.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/mod.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/unix.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/errors.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/common.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/mod.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/alsa/mod.rs
+
+/media/aidan/Local Disc B/Eclipse-Java/Favorites with Style/Favorites with Style Editor/midirust/target/debug/deps/libmidir-1597accb06c202d8.rmeta: /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/lib.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/mod.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/unix.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/errors.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/common.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/mod.rs /home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/alsa/mod.rs
+
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/lib.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/mod.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/os/unix.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/errors.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/common.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/mod.rs:
+/home/aidan/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/midir-0.10.4/src/backend/alsa/mod.rs:
