@@ -6,7 +6,11 @@ Favorites with Style, or FWS for short, is a Java-based GUI MIDI arranger design
 
 For Casio users, “Voice” = Tone and “Style” = Rhythm.
 
+<img width="1920" height="1170" alt="image" src="https://github.com/user-attachments/assets/38a2e0b3-4ad0-48ec-b0f8-c2291ea0170d" />
+
 The defining feature of Favorites with Style is the “Style” part. Having to manually define accompaniment in a MIDI song can be a time-consuming process and error-prone if you want the accompaniment to emulate a style on your keyboard. Favorites with Style allows you to add accompaniment in a few MIDI events. Simply load or define the desired style for your song and use events to define how the style plays and what chords are output. When you play the song, the accompaniment is automatically calculated based on your input, as if you were playing it on your keyboard. There is even a simulated keyboard display for a more authentic experience.
+
+<img width="515" height="215" alt="image" src="https://github.com/user-attachments/assets/e15b92f2-9613-4e36-8357-aab20fdbf947" />
 
 You can also define custom styles to expand the library of your instrument, even if it doesn’t support custom styles on its own. The style editor can play back any section of a style in a loop and automatically changes the output based on chord input from your keyboard.
 
