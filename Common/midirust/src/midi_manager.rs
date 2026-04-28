@@ -500,6 +500,8 @@ impl<'local> JMidiManager<'local> {
 			let set_bass_chord = Arc::new(Mutex::new(Chord::ChordOff));
 			let set_full_bass_root = Arc::new(Mutex::new(-1));
 
+			let set_inversion = Arc::new(Mutex::new(-1));
+
 			let mut chord_changed = false;
 
 			let mut play = true;
@@ -521,6 +523,7 @@ impl<'local> JMidiManager<'local> {
 				let mut set_set_bass_root = *set_bass_root.lock().unwrap();
 				let mut set_set_bass_chord = *set_bass_chord.lock().unwrap();
 				let mut set_set_bass_full_root = *set_full_bass_root.lock().unwrap();
+				let mut set_set_inversion = *set_inversion.lock().unwrap();
 				
 				let mut last_tick = 0;
 
@@ -562,6 +565,7 @@ impl<'local> JMidiManager<'local> {
 						set_set_bass_root = e.bass_root;
 						set_set_bass_chord = e.bass_chord;
 						set_set_bass_full_root = e.bass_full;
+						set_set_inversion = e.inversion;
 						continue;
 					} else {
 						*set_root.lock().unwrap() = set_set_root;
@@ -570,6 +574,7 @@ impl<'local> JMidiManager<'local> {
 						*set_bass_root.lock().unwrap() = set_set_bass_root;
 						*set_bass_chord.lock().unwrap() = set_set_bass_chord;
 						*set_full_bass_root.lock().unwrap() = set_set_bass_full_root;
+						*set_inversion.lock().unwrap() = set_set_inversion;
 
 						break;
 					}
@@ -836,6 +841,7 @@ impl<'local> JMidiManager<'local> {
 						*set_bass_root.lock().unwrap() = ev.bass_root;
 						*set_bass_chord.lock().unwrap() = ev.bass_chord;
 						*set_full_bass_root.lock().unwrap() = ev.bass_full;
+						*set_inversion.lock().unwrap() = ev.inversion;
 						chord_changed = true;
 
 						c += 1;
@@ -970,7 +976,7 @@ impl<'local> JMidiManager<'local> {
 									let bass = *set_bass_chord.lock().unwrap();
 									let bass_full = *set_full_bass_root.lock().unwrap();
 
-									let _ = env.call_method(&info_display, jni_str!("refreshChord"), jni_sig!((jbyte, jbyte, jbyte, jbyte, jint, jbyte)), &[Byte(root_full), Byte(main as i8), Byte(bass_full), Byte(bass as i8), Int(-1), Byte(0)]);
+									let _ = env.call_method(&info_display, jni_str!("refreshChord"), jni_sig!((jbyte, jbyte, jbyte, jbyte, jint, jbyte)), &[Byte(root_full), Byte(main as i8), Byte(bass_full), Byte(bass as i8), Int(*set_inversion.lock().unwrap() as i32), Byte(0)]);
 								}
 							}
 							Err(_) => {

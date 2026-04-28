@@ -1942,6 +1942,19 @@ impl StyleManager {
 					}
 				}
 
+				for c in 0..control_set.len() {
+					let set = control_set[c];
+					if set[100] || set[101] {
+						return_events.push([0xB0 | (c as u8), 101, 127].to_vec());
+						return_events.push([0xB0 | (c as u8), 100, 127].to_vec());
+					}
+
+					if set[98] || set[99] {
+						return_events.push([0xB0 | (c as u8), 99, 127].to_vec());
+						return_events.push([0xB0 | (c as u8), 98, 127].to_vec());
+					}
+				}
+
 				for c in 0..self.note_on.len() {
 					for n in 0..self.note_on[c].len() {
 						if self.note_on[c][n] {

@@ -35,6 +35,9 @@ public abstract class FWS {
 		if(new_song == null)
 			return;
 
+		midi_manager.getPlayerOptions().song_melody_rh = new_song.getSongMetadata().melody_rh_channel;
+		midi_manager.getPlayerOptions().song_melody_lh = new_song.getSongMetadata().melody_lh_channel;
+
 		loadSong(new_song);
 	}
 
