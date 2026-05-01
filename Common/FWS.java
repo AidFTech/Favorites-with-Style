@@ -1,11 +1,16 @@
 package controllers;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.swing.JFrame;
 
 import options.GlobalOptions;
 import song.FWSSong;
+import voices.InstrumentProfile;
 import voices.Voice;
 
 public abstract class FWS {
@@ -17,16 +22,23 @@ public abstract class FWS {
 	protected SaveLoadController save_load_controller;
 	protected FWSSong loaded_song;
 	protected File loaded_song_file = null;
+	protected MIDIManager midi_manager;
+	protected GlobalOptions global_options = new GlobalOptions();
+
+	protected Map<String, InstrumentProfile> instrument_profiles = new HashMap<>();
+	protected InstrumentProfile active_profile = null;
+	protected String active_instrument = "";
 
 	private Voice[] active_voice_list;
 
-	protected MIDIManager midi_manager;
-
-	protected GlobalOptions global_options = new GlobalOptions();
-
 	public FWS() {
+		save_load_controller = new SaveLoadController(this);
 		active_voice_list = Voice.getGMVoices();
 		midi_manager = new MIDIManager(this);
+
+		loaded_song = new FWSSong();
+
+		save_load_controller.initFWS();
 	}
 
 	/** Load a song. */
@@ -39,6 +51,63 @@ public abstract class FWS {
 		midi_manager.getPlayerOptions().song_melody_lh = new_song.getSongMetadata().melody_lh_channel;
 
 		loadSong(new_song);
+	}
+
+	/** Get the active instrument profile name. */
+	public String getInstrumentProfileName() {
+		if(this.active_profile != null)
+			return this.active_profile.getInstrumentFamily();
+		else
+			return "";
+	}
+
+	/** Get the name of the selected instrument. */
+	public String getInstrumentName() {
+		return this.active_instrument;
+	}
+
+	/** Get the instrument profile. */
+	public InstrumentProfile getInstrumentProfile(String family) {
+		return this.instrument_profiles.get(family);
+	}
+
+	/** Get the list of instrument families. */
+	public String[] getInstrumentProfileList() {
+		ArrayList<String> instrument_names = new ArrayList<>();
+		for(Entry<String, InstrumentProfile>instrument : instrument_profiles.entrySet()) {
+			instrument_names.add(instrument.getKey());
+		}
+
+		String[] instrument_name_array = new String[instrument_names.size()];
+		instrument_names.toArray(instrument_name_array);
+		return instrument_name_array;
+	}
+
+	/** Set the instrument family. */
+	public void setInstrumentFamily(final String family) {
+		active_profile = this.instrument_profiles.get(family);
+		active_voice_list = Voice.getGMVoices();
+		active_instrument = "";
+	}
+
+	/** Set a new voice list from a specific instrument. If the string is blank, set to GM voices. */
+	public void setVoiceList(final String instrument) {
+		if(!instrument.isBlank()) {
+			if(active_profile == null) {
+				active_voice_list = Voice.getGMVoices();
+				return;
+			}
+
+			Voice[] voice_list = active_profile.getVoiceList(instrument);
+			if(voice_list == null) {
+				active_voice_list = Voice.getGMVoices();
+				return;
+			} 
+
+			active_voice_list = voice_list;
+			active_instrument = instrument;
+		} else
+			active_voice_list = Voice.getGMVoices();
 	}
 
 	/** Load a song. */

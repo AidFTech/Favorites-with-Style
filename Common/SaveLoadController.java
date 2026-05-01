@@ -2,7 +2,9 @@ package controllers;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -10,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -35,6 +38,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import org.ini4j.Ini;
+
 import fwsevents.FWSChordEvent;
 import fwsevents.FWSEvent;
 import fwsevents.FWSSequence;
@@ -43,13 +48,103 @@ import song.FWSSong;
 import song.FWSSongMetadata;
 import style.ChordBody;
 import style.Style;
+import voices.InstrumentProfile;
 
 public class SaveLoadController {
 	private FWS controller;
-	private String last_filepath = "";
+	private String last_filepath = "", data_path = "";
+
+	private static final String DEFAULTS = "FWSDefaults.ini", DEFAULTS_HEADER = "FWSDefaults";
+	private static final String KEY_LAST_PATH = "LastPath", KEY_DATA_PATH = "DataPath";
+	private static final String KEY_FAMILY = "InstrumentFamily", KEY_VOICE_LIST = "InstrumentVoices";
 
 	public SaveLoadController(FWS controller) {
 		this.controller = controller;
+	}
+
+	/** Load in initial default settings. */
+	protected void initFWS() {
+		boolean rewrite_init = false;
+
+		try {
+			Ini main_ini = new Ini(new FileReader(DEFAULTS));
+
+			final String last_path = main_ini.get(DEFAULTS_HEADER, KEY_LAST_PATH);
+			if(last_path != null)
+				this.last_filepath = last_path;
+			else
+				rewrite_init = true;
+
+			final String data_path = main_ini.get(DEFAULTS_HEADER, KEY_DATA_PATH);
+			if(data_path != null) {
+				this.data_path = data_path;
+				getInstrumentProfiles(controller.instrument_profiles, new File(data_path));
+			} else
+				rewrite_init = true;
+
+			final String family = main_ini.get(DEFAULTS_HEADER, KEY_FAMILY);
+			if(family != null)
+				controller.setInstrumentFamily(family);
+			else
+				rewrite_init = true;
+
+			final String instrument = main_ini.get(DEFAULTS_HEADER, KEY_VOICE_LIST);
+			if(instrument != null)
+				controller.setVoiceList(instrument);
+			else
+				rewrite_init = true;
+		} catch(FileNotFoundException e) {
+			saveDefaults();
+		} catch(IOException e) {
+
+		}
+
+		if(rewrite_init)
+			saveDefaults();
+	}
+
+	/** Save initial default settings. */
+	protected void saveDefaults() {
+		Ini main_ini = null;
+		try {
+			File defaults_file = new File(DEFAULTS);
+			main_ini = new Ini(defaults_file);
+		} catch (IOException e) {
+			File defaults_file = new File(DEFAULTS);
+
+			try {
+				defaults_file.createNewFile();
+				main_ini = new Ini(defaults_file);
+			} catch(IOException e1) {
+				return;
+			}
+		}
+		
+		if(data_path.isBlank()) {
+			try {
+				final String home_dir = System.getProperty("user.home");
+				
+				Files.createDirectories(Paths.get(home_dir + "/FWS"));
+				data_path = home_dir + "/FWS";
+			} catch (IOException e) {
+				return;
+			}
+		}
+
+		main_ini.put(DEFAULTS_HEADER, KEY_LAST_PATH, last_filepath);
+		main_ini.put(DEFAULTS_HEADER, KEY_DATA_PATH, data_path);
+		if(controller.active_profile != null)
+			main_ini.put(DEFAULTS_HEADER, KEY_FAMILY, controller.active_profile.getInstrumentFamily());
+		else
+			main_ini.put(DEFAULTS_HEADER, KEY_FAMILY, "");
+		main_ini.put(DEFAULTS_HEADER, KEY_VOICE_LIST, controller.active_instrument);
+
+		try {
+			main_ini.store();
+		} catch (IOException e) {
+			
+		}
+
 	}
 
 	/** Open the file chooser to import MIDI data. */
@@ -64,7 +159,7 @@ public class SaveLoadController {
 
 		final int return_val = file_chooser.showOpenDialog(controller.getMainWindow());
 		if(return_val == JFileChooser.APPROVE_OPTION) {
-			last_filepath = file_chooser.getSelectedFile().getPath();
+			last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 			return file_chooser.getSelectedFile();
 		}
 		return null;
@@ -128,7 +223,7 @@ public class SaveLoadController {
 
 		final int return_val = file_chooser.showOpenDialog(controller.getMainWindow());
 		if(return_val == JFileChooser.APPROVE_OPTION) {
-			last_filepath = file_chooser.getSelectedFile().getPath();
+			last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 			return file_chooser.getSelectedFile();
 		}
 		return null;
@@ -211,49 +306,21 @@ public class SaveLoadController {
 		}
 
 		final String tmp_dir = "./.fwstmp";
-		Path tmp_path = Paths.get(tmp_dir);
 		File tmp_dest = new File(tmp_dir);
 
 		try {
-			Files.createDirectories(tmp_path);
-
-			byte[] zip_buffer = new byte[1024];
-			ZipInputStream zip_input = new ZipInputStream(new FileInputStream(song_file));
-			ZipEntry zip_entry = zip_input.getNextEntry();
-
-			while(zip_entry != null) {
-				File new_file = new File(tmp_dest, zip_entry.getName());
-				if(zip_entry.isDirectory()) {
-					if(!new_file.isDirectory())
-						new_file.mkdirs();
-				} else {
-					File parent = new_file.getParentFile();
-					if(!parent.isDirectory())
-						parent.mkdirs();
-
-					FileOutputStream output_stream = new FileOutputStream(new_file);
-					int length;
-					while((length = zip_input.read(zip_buffer)) > 0) {
-						output_stream.write(zip_buffer, 0, length);
-					}
-					output_stream.close();
-				}
-
-				zip_entry = zip_input.getNextEntry();
-			}
-
-			zip_input.closeEntry();
-			zip_input.close();
-
-			File[] song_files = tmp_dest.listFiles();
-			if(song_files == null)
+			File[] song_files = unzipFile(song_file, tmp_dest);
+			if(song_files == null) {
+				deleteDirectory(tmp_dest);
 				return null;
+			}
 
 			loadSongEvents("", song_files, new_song);
 		} catch (IOException | ParserConfigurationException | SAXException e) {
 			deleteDirectory(tmp_dest);
 			return null;
 		}
+
 
 		deleteDirectory(tmp_dest);
 		controller.setLoadedSongFile(song_file);
@@ -280,6 +347,124 @@ public class SaveLoadController {
 				loadChordInfoXML(song, song_files[i]);
 			}
 		}
+	}
+
+	/** Add the current list of instrument profiles to the list. */
+	protected void getInstrumentProfiles(Map<String, InstrumentProfile> profile_list, File directory) {
+		if(!directory.isDirectory())
+			return;
+
+		File[] file_list = directory.listFiles();
+		if(file_list == null)
+			return;
+
+		profile_list.clear();
+		for(File f : file_list) {
+			if(f.getName().toUpperCase().endsWith("FWSDAT")) { //Instrument profile!
+				InstrumentProfile profile = loadInstrumentProfile(f);
+				profile_list.put(profile.getInstrumentFamily(), profile);
+			}
+		}
+	}
+
+	/** Load an instrument profile. */
+	private static InstrumentProfile loadInstrumentProfile(File profile_file) {
+		final String tmp_dir = "./.fwstmp";
+		File tmp_dest = new File(tmp_dir);
+
+		InstrumentProfile profile = new InstrumentProfile();
+
+		try {
+			File[] profile_files = unzipFile(profile_file, tmp_dest);
+
+			if(profile_files == null) {
+				deleteDirectory(tmp_dest);
+				return null;
+			}
+
+			loadInstrumentParameters("", profile_files, profile);
+		} catch (IOException e) {
+			deleteDirectory(tmp_dest);
+			return null;
+		}
+
+		deleteDirectory(tmp_dest);
+		return profile;
+	}
+
+	/** Load instrument profile parameters recursively. */
+	private static void loadInstrumentParameters(String directory, File[] profile_files, InstrumentProfile profile) {
+		for(File f : profile_files) {
+			if(f.isDirectory()) {
+				File[] new_files = f.listFiles();
+				loadInstrumentParameters(f.getName(), new_files, profile);
+			} else if(directory.equalsIgnoreCase("VOICES") && f.getName().toUpperCase().endsWith("CSV")) { //Scan in voices.
+				String instrument_name = f.getName();
+				int index = -1;
+				if((index = instrument_name.lastIndexOf(".")) >= 0)
+					instrument_name = instrument_name.substring(0, index);
+
+				profile.addVoiceList(instrument_name, f);
+			} else if(f.getName().equalsIgnoreCase("MAIN.INI")) { //General profile info.
+				try {
+					Ini main_ini = new Ini(new FileReader(f));
+					
+					String instrument_family = main_ini.get("InstrumentFamily", "Family");
+					profile.setInstrumentFamily(instrument_family);
+
+					String percussion = main_ini.get("InstrumentFamily", "Percussion");
+					profile.setPercussionHeader(Integer.parseInt(percussion));
+
+					String melody_stream_rh = main_ini.get("InstrumentFamily", "StreamRH"), melody_stream_lh = main_ini.get("InstrumentFamily", "StreamLH");
+					String melody_file_rh = main_ini.get("InstrumentFamily", "FileRH"), melody_file_lh = main_ini.get("InstrumentFamily", "FileLH");
+
+					final byte stream_rh = Byte.parseByte(melody_stream_rh), stream_lh = Byte.parseByte(melody_stream_lh);
+					final byte file_rh = Byte.parseByte(melody_file_rh), file_lh = Byte.parseByte(melody_file_lh);
+					profile.setMelodyChannels(stream_rh, stream_lh, file_rh, file_lh);
+				} catch (IOException | NumberFormatException e) {
+					continue;
+				}
+			}
+		}
+	}
+
+	/** Unzip a file. */
+	private static File[] unzipFile(File z_file, File tmp_dest) throws IOException {
+		Files.createDirectories(tmp_dest.toPath());
+
+		byte[] zip_buffer = new byte[1024];
+		ZipInputStream zip_input = new ZipInputStream(new FileInputStream(z_file));
+		ZipEntry zip_entry = zip_input.getNextEntry();
+
+		while(zip_entry != null) {
+			File new_file = new File(tmp_dest, zip_entry.getName());
+			if(zip_entry.isDirectory()) {
+				if(!new_file.isDirectory())
+					new_file.mkdirs();
+			} else {
+				File parent = new_file.getParentFile();
+				if(!parent.isDirectory())
+					parent.mkdirs();
+
+				FileOutputStream output_stream = new FileOutputStream(new_file);
+				int length;
+				while((length = zip_input.read(zip_buffer)) > 0) {
+					output_stream.write(zip_buffer, 0, length);
+				}
+				output_stream.close();
+			}
+
+			zip_entry = zip_input.getNextEntry();
+		}
+
+		zip_input.closeEntry();
+		zip_input.close();
+
+		File[] files = tmp_dest.listFiles();
+		if(files == null)
+			return null;
+
+		return files;
 	}
 
 	/** Zip a file. */
@@ -384,7 +569,7 @@ public class SaveLoadController {
 				return null;
 		}
 
-		last_filepath = file_chooser.getSelectedFile().getPath();
+		last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 		return output;
 	}
 
@@ -400,7 +585,7 @@ public class SaveLoadController {
 
 		final int return_val = file_chooser.showOpenDialog(controller.getMainWindow());
 		if(return_val == JFileChooser.APPROVE_OPTION) {
-			last_filepath = file_chooser.getSelectedFile().getPath();
+			last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 			return file_chooser.getSelectedFile();
 		}
 		return null;
@@ -450,7 +635,7 @@ public class SaveLoadController {
 				return;
 		}
 
-		last_filepath = file_chooser.getSelectedFile().getPath();
+		last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 		writeBytesToFile(output, file_binary);
 	}
 
@@ -468,7 +653,7 @@ public class SaveLoadController {
 
 		final int return_val = file_chooser.showOpenDialog(controller.getMainWindow());
 		if(return_val == JFileChooser.APPROVE_OPTION) {
-			last_filepath = file_chooser.getSelectedFile().getPath();
+			last_filepath = file_chooser.getSelectedFile().getParentFile().getPath();
 			return file_chooser.getSelectedFile();
 		}
 		return null;

@@ -24,6 +24,7 @@ import style.Style;
 import tools.EventListWindow;
 import tools.MIDIDeviceWindow;
 import tools.TickShiftWindow;
+import voices.InstrumentProfile;
 
 import javax.swing.JMenuBar;
 import javax.swing.JMenu;
@@ -281,6 +282,69 @@ public class FWSEditorMainWindow extends JFrame {
 			}
 		});
 		menu_midi.add(menu_item_configure_instrument);
+
+		//Add the voice list.
+		JMenu menu_voice_list = new JMenu("Voice List");
+		menu_midi.add(menu_voice_list);
+
+		JMenuItem menu_item_gm_list = new JRadioButtonMenuItem("General MIDI");
+		menu_item_gm_list.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				controller.setInstrumentFamily("");
+				controller.setVoiceList("");
+
+				song_viewport.refreshFull();
+			}
+		});
+		menu_voice_list.add(menu_item_gm_list);
+
+		ButtonGroup voice_button_group = new ButtonGroup();
+		voice_button_group.add(menu_item_gm_list);
+
+		//Add the voice list from the controller.
+		{
+			boolean voice_list_found = false;
+			String[] families = controller.getInstrumentProfileList();
+			for(String family : families) {
+				InstrumentProfile profile = controller.getInstrumentProfile(family);
+				if(profile == null)
+					continue;
+
+				String[] instruments = profile.getInstrumentNames();
+				if(instruments == null)
+					continue;
+
+				JMenu profile_menu = new JMenu(family);
+				menu_voice_list.add(profile_menu);
+
+				for(String instrument : instruments) {
+					if(instrument.isBlank())
+						continue;
+
+					final String instr_name = instrument;
+					JRadioButtonMenuItem menu_item_instrument = new JRadioButtonMenuItem(instrument);
+					profile_menu.add(menu_item_instrument);
+					voice_button_group.add(menu_item_instrument);
+
+					if(family.equalsIgnoreCase(controller.getInstrumentProfileName()) && instrument.equalsIgnoreCase(controller.getInstrumentName())) {
+						menu_item_instrument.setSelected(true);
+						voice_list_found = true;
+					}
+
+					menu_item_instrument.addActionListener(new ActionListener() {
+						@Override
+						public void actionPerformed(ActionEvent e) {
+							controller.setInstrumentFamily(family);
+							controller.setVoiceList(instr_name);
+						}
+					});
+				}
+			}
+
+			if(!voice_list_found)
+				menu_item_gm_list.setSelected(true);
+		}
 		
 		//Add transport controls.
 		JButton button_stop = new JButton("");

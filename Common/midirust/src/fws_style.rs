@@ -1257,7 +1257,11 @@ impl StyleManager {
 	pub fn play(&mut self, song_tick: u64) -> (Vec<Vec<u8>>, u64) {
 		let mut note_bytes = Vec::new();
 
-		let style_tick = self.get_style_tick(song_tick);
+		let style_tick = if self.style_len > 0 { 
+			self.get_style_tick(song_tick) 
+		} else {
+			return (Vec::new(), song_tick);
+		};
 
 		let mut new_tick_vec = Vec::new();
 		let mut new_tick = style_tick+self.style_tpq/16;
@@ -1333,16 +1337,6 @@ impl StyleManager {
 			new_tick = old_tick + self.style_tpq/16;
 		}
 
-		if new_tick >= self.style_len {
-			for ev in &self.looped_events {
-				if ev.tick < self.style_len {
-					continue;
-				}
-
-				note_bytes.push(ev.data.clone());
-			}
-		}
-
 		let mut voice_changed = [false; 16];
 
 		//Check for voice changes.
@@ -1368,6 +1362,17 @@ impl StyleManager {
 			}
 		}
 
+		//End of section?
+		if new_tick >= self.style_len {
+			for ev in &self.looped_events {
+				if ev.tick < self.style_len {
+					continue;
+				}
+
+				note_bytes.push(ev.data.clone());
+			}
+		}
+
 		for mut ve in note_bytes {
 			if ve.len() < 2 {
 				continue;
@@ -1382,7 +1387,7 @@ impl StyleManager {
 			{
 				let channel = (ve[0]&0xF) as usize;
 
-				if ve[0]&0xE0 == 0x80 {
+				if (ve[0]&0xE0) == 0x80 {
 					let note = ve[1] as i8;
 
 					let mut note_found = false;

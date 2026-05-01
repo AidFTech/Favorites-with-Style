@@ -47,13 +47,15 @@ public class FWSEditor extends FWS {
 			}
 		}
 
-		new FWSEditor();
+		FWSEditor controller = new FWSEditor();
+		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+		public void run() {
+			controller.save_load_controller.saveDefaults();
+		}
+	}));
 	}
 
 	public FWSEditor() {
-		this.save_load_controller = new SaveLoadController(this);
-
-		this.loaded_song = new FWSSong();
 		this.active_sequence = loaded_song.getSongSequence();
 
 		this.scratch_sequence.init();
