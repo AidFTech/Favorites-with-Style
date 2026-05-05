@@ -13,6 +13,15 @@ import javax.sound.midi.MetaMessage;
 import javax.sound.midi.MidiDevice.Info;
 import javax.swing.JComboBox;
 
+import org.python.core.PyByteArray;
+import org.python.core.PyException;
+import org.python.core.PyFunction;
+import org.python.core.PyInteger;
+import org.python.core.PyObject;
+import org.python.core.PyString;
+import org.python.core.PyTuple;
+import org.python.util.PythonInterpreter;
+
 import fwsevents.FWSChordEvent;
 import fwsevents.FWSEvent;
 import fwsevents.FWSNoteEvent;
@@ -23,6 +32,7 @@ import options.MIDIPlayerOptions;
 import song.FWSSong;
 import style.ChordBody;
 import style.Style;
+import voices.InstrumentProfile;
 import voices.Voice;
 
 public class MIDIManager {
@@ -165,6 +175,69 @@ public class MIDIManager {
 
 		Sequence ret_sequence = new Sequence(Sequence.PPQ, song.getSongSequence().getTPQ());
 		Track song_track = ret_sequence.createTrack();
+
+		//Get the interpreter.
+		PythonInterpreter interpreter = null;
+		InstrumentProfile profile = controller.getInstrumentProfile(controller.getInstrumentProfileName());
+		if(profile != null) {
+			interpreter = new PythonInterpreter();
+			String script = profile.getScript();
+
+			try {
+				interpreter.exec(script);
+			} catch(PyException e) {
+				interpreter = null;
+				//Error message?
+			}
+		}
+
+		//Start of song events.
+		if(interpreter != null) {
+			interpreter.set("song_metadata", song.getSongMetadata());
+			interpreter.set("export_options", export_options);
+
+			PyObject song_metadata_p = interpreter.get("song_metadata"), export_options_p = interpreter.get("export_options");
+			PyFunction start_function = interpreter.get("on_song_start_file", PyFunction.class);
+
+			PyTuple start_tuple = (PyTuple)start_function.__call__(song_metadata_p, export_options_p);
+			
+			if(start_tuple != null) {
+				PyObject[] start_tuple_array = start_tuple.getArray();
+				for(PyObject msg : start_tuple_array) {
+					if(!(msg instanceof PyByteArray))
+						continue;
+
+					PyByteArray p_msg_bytes = (PyByteArray)msg;
+					PyInteger[] p_msg_int = new PyInteger[p_msg_bytes.size()];
+					p_msg_bytes.toArray(p_msg_int);
+
+					byte[] msg_bytes = new byte[p_msg_int.length];
+					for(int i=0;i<msg_bytes.length;i+=1)
+						msg_bytes[i] = (byte)p_msg_int[i].getValue();
+
+					if(msg_bytes.length > 0 && (msg_bytes[0]&0xFF) == 0xF0) {
+						SysexMessage start_message = new SysexMessage(msg_bytes, msg_bytes.length);
+						MidiEvent start_event = new MidiEvent(start_message, 0);
+						song_track.add(start_event);
+					} else if(msg_bytes.length >= 3 && (msg_bytes[0]&0xFF) == 0xFF) {
+						final int type = msg_bytes[1];
+
+						if(msg_bytes.length <= 3)
+							continue;
+
+						byte[] meta_bytes = new byte[msg_bytes.length - 3];
+						for(int i=0;i<meta_bytes.length;i+=1)
+							meta_bytes[i] = msg_bytes[i+3];
+
+						MetaMessage start_message = new MetaMessage(type, meta_bytes, meta_bytes.length);
+						MidiEvent start_event = new MidiEvent(start_message, 0);
+						song_track.add(start_event);
+					}
+				}
+				}
+		}
+
+		//Notes.
 		for(int e=0;e<events.size() && e<ticks.size();e+=1) {
 			if(events.get(e).length <= 0)
 				continue;
@@ -191,49 +264,94 @@ public class MIDIManager {
 		}
 
 		//Export chords.
-		if(song.getSongMetadata().chord_channel >= 0) {
+		if(export_options.export_chords || song.getSongMetadata().chord_channel >= 0) {
+			final boolean print_notes = song.getSongMetadata().chord_channel >= 0;
+
 			byte channel = song.getSongMetadata().chord_channel;
 			if(channel == song.getSongMetadata().melody_rh_channel)
 				channel = export_options.export_melody_rh;
 			else if(channel == song.getSongMetadata().melody_lh_channel)
 				channel = export_options.export_melody_lh;
 
-			ShortMessage chord_volume_message = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, 0x7, 0);
-			MidiEvent chord_volume_event = new MidiEvent(chord_volume_message, 0);
-			song_track.add(chord_volume_event);
+			if(print_notes) {
+				ShortMessage chord_volume_message = new ShortMessage(ShortMessage.CONTROL_CHANGE, channel, 0x7, 0);
+				MidiEvent chord_volume_event = new MidiEvent(chord_volume_message, 0);
+				song_track.add(chord_volume_event);
+			}
 
 			ArrayList<FWSEvent> song_events = song.getSongSequence().getCommonEvents();
 			for(int e=0;e<song_events.size();e+=1) {
 				if(song_events.get(e) instanceof FWSChordEvent) {
 					FWSChordEvent chord_event = (FWSChordEvent)song_events.get(e);
-					ChordBody main_chord = chord_event.main_chord;
+					ChordBody main_chord = chord_event.main_chord, bass_chord = chord_event.bass_chord;
 					final int inversion = export_options.invert ? chord_event.inversion : -1;
 
-					byte[] chord_notes = main_chord.getInversion(inversion, song.getSongMetadata().split_point);
-					long end_tick = song.getSongLength();
+					if(print_notes) {
+						byte[] chord_notes = main_chord.getInversion(inversion, song.getSongMetadata().split_point);
+						long end_tick = song.getSongLength();
 
-					for(int r=e+1;r<song_events.size();r+=1) {
-						if(song_events.get(r) instanceof FWSChordEvent) {
-							end_tick = song_events.get(r).tick;
-							break;
-						} else if(song_events.get(r) instanceof FWSStyleChangeEvent) {
-							FWSStyleChangeEvent style = (FWSStyleChangeEvent) song_events.get(r);
-							if(style.style_name.isEmpty() || style.section_name.isEmpty()) {
-								end_tick = style.tick;
+						for(int r=e+1;r<song_events.size();r+=1) {
+							if(song_events.get(r) instanceof FWSChordEvent) {
+								end_tick = song_events.get(r).tick;
 								break;
+							} else if(song_events.get(r) instanceof FWSStyleChangeEvent) {
+								FWSStyleChangeEvent style = (FWSStyleChangeEvent) song_events.get(r);
+								if(style.style_name.isEmpty() || style.section_name.isEmpty()) {
+									end_tick = style.tick;
+									break;
+								}
 							}
+						}
+
+						for(int i=0;i<chord_notes.length;i+=1) {
+							ShortMessage chord_start_message = new ShortMessage(ShortMessage.NOTE_ON, channel, chord_notes[i], 1);
+							ShortMessage chord_end_message = new ShortMessage(ShortMessage.NOTE_OFF, channel, chord_notes[i], 0);
+
+							MidiEvent chord_start_event = new MidiEvent(chord_start_message, chord_event.tick);
+							MidiEvent chord_end_event = new MidiEvent(chord_end_message, end_tick);
+
+							song_track.add(chord_start_event);
+							song_track.add(chord_end_event);
 						}
 					}
 
-					for(int i=0;i<chord_notes.length;i+=1) {
-						ShortMessage chord_start_message = new ShortMessage(ShortMessage.NOTE_ON, channel, chord_notes[i], 1);
-						ShortMessage chord_end_message = new ShortMessage(ShortMessage.NOTE_OFF, channel, chord_notes[i], 0);
+					if(interpreter != null && export_options.export_chords) {
+						interpreter.set("main_chord", main_chord);
+						interpreter.set("bass_chord", bass_chord);
+						PyObject p_chord_main = interpreter.get("main_chord"), p_chord_bass = interpreter.get("bass_chord");
+						PyFunction chord_function = (PyFunction)interpreter.get("on_chord_file", PyFunction.class);
 
-						MidiEvent chord_start_event = new MidiEvent(chord_start_message, chord_event.tick);
-						MidiEvent chord_end_event = new MidiEvent(chord_end_message, end_tick);
+						if(chord_function != null) {
+							PyByteArray chord_sysex = (PyByteArray)chord_function.__call__(p_chord_main, p_chord_bass, new PyString(controller.getInstrumentName()));
 
-						song_track.add(chord_start_event);
-						song_track.add(chord_end_event);
+							if(chord_sysex != null) {
+								PyInteger[] chord_sysex_py_bytes = new PyInteger[chord_sysex.size()];
+								chord_sysex.toArray(chord_sysex_py_bytes);
+
+								byte[] chord_sysex_bytes = new byte[chord_sysex_py_bytes.length];
+								for(int i=0;i<chord_sysex_py_bytes.length;i+=1)
+									chord_sysex_bytes[i] = (byte)chord_sysex_py_bytes[i].getValue();
+								
+								if(chord_sysex_bytes.length > 0 && (chord_sysex_bytes[0]&0xFF) == 0xF0) {
+									byte[] msg_bytes = new byte[chord_sysex_bytes.length];
+									for(int i=0;i<chord_sysex_bytes.length;i+=1)
+										msg_bytes[i] = chord_sysex_bytes[i];
+
+									SysexMessage chord_message = new SysexMessage(msg_bytes, msg_bytes.length);
+									MidiEvent midi_chord_event = new MidiEvent(chord_message, chord_event.tick);
+									song_track.add(midi_chord_event);
+								} else if(chord_sysex_bytes.length >= 3 && (chord_sysex_bytes[0]&0xFF) == 0xFF) {
+									final int type = chord_sysex_bytes[1];
+									byte[] msg_bytes = new byte[chord_sysex_bytes.length - 3];
+									for(int i=3;i<chord_sysex_bytes.length;i+=1)
+										msg_bytes[i-3] = chord_sysex_bytes[i];
+
+									MetaMessage chord_message = new MetaMessage(type, msg_bytes, msg_bytes.length);
+									MidiEvent midi_chord_event = new MidiEvent(chord_message, chord_event.tick);
+									song_track.add(midi_chord_event);
+								}
+							}
+						}
 					}
 				}
 			}

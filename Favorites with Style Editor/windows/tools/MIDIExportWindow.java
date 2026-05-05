@@ -12,6 +12,7 @@ import fwsevents.FWSSequence;
 import main_window.FWSEditorMainWindow;
 import options.MIDIExportOptions;
 import song.FWSSong;
+import song.FWSSongMetadata;
 
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
@@ -94,11 +95,25 @@ public class MIDIExportWindow extends JDialog {
 		checkbox_truncate.setSelected(export_options.truncate);
 		getContentPane().add(checkbox_truncate);
 		
+		JCheckBox checkbox_print_chords = new JCheckBox("Print Chords");
+		checkbox_print_chords.setToolTipText("Check to print chords to the instrument display if supported.");
+		checkbox_print_chords.setBounds(12, 250, 161, 35);
+		checkbox_print_chords.setSelected(export_options.export_chords);
+
+		if(song != null)
+			getContentPane().add(checkbox_print_chords);
+
 		JCheckBox checkbox_invert_chords = new JCheckBox("Invert Chords");
 		checkbox_invert_chords.setToolTipText("Check to display chord inversions on the instrument display. Uncheck for the uninverted chord display of a Yamaha or Casio A² instrument.");
 		checkbox_invert_chords.setBounds(12, 280, 161, 35);
 		checkbox_invert_chords.setSelected(export_options.invert);
-		getContentPane().add(checkbox_invert_chords);
+		
+		if(song != null) {
+			FWSSongMetadata metadata = song.getSongMetadata();
+
+			if(metadata.chord_channel == metadata.melody_rh_channel || metadata.chord_channel == metadata.melody_lh_channel)
+				getContentPane().add(checkbox_invert_chords);
+		}
 		
 		JLabel label_chord_names = new JLabel("Chord Names");
 		label_chord_names.setBounds(12, 348, 133, 35);

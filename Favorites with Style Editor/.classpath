@@ -9,5 +9,6 @@
 	<classpathentry kind="src" path="windows"/>
 	<classpathentry kind="src" path="graphics"/>
 	<classpathentry kind="lib" path="/usr/share/java/ini4j.jar"/>
+	<classpathentry kind="lib" path="/usr/local/lib/jython/jython.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

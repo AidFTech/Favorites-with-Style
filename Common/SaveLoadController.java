@@ -350,6 +350,12 @@ public class SaveLoadController {
 	}
 
 	/** Add the current list of instrument profiles to the list. */
+	protected void getInstrumentProfiles(Map<String, InstrumentProfile> profile_list) {
+		if(data_path != null && !data_path.isBlank())
+			getInstrumentProfiles(controller.instrument_profiles, new File(data_path));
+	}
+
+	/** Add the current list of instrument profiles to the list. */
 	protected void getInstrumentProfiles(Map<String, InstrumentProfile> profile_list, File directory) {
 		if(!directory.isDirectory())
 			return;
@@ -424,6 +430,8 @@ public class SaveLoadController {
 				} catch (IOException | NumberFormatException e) {
 					continue;
 				}
+			} else if(f.getName().equalsIgnoreCase("PROFILESCRIPT.PY")) { //Profile script.
+				profile.setScript(f);
 			}
 		}
 	}

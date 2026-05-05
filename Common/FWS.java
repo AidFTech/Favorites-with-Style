@@ -110,6 +110,11 @@ public abstract class FWS {
 			active_voice_list = Voice.getGMVoices();
 	}
 
+	/** Refresh the instrument profile list. */
+	public void refreshInstrumentProfiles() {
+		save_load_controller.getInstrumentProfiles(instrument_profiles);
+	}
+
 	/** Load a song. */
 	protected void loadSong(FWSSong song) {
 		//Called by children.

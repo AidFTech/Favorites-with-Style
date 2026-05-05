@@ -14,6 +14,7 @@ public class InstrumentProfile {
 	private String instrument_family = ""; //E.g. A^2, HL, AHL, PSR-E, DGX, Tyros, etc.
 
 	private int percussion_header = 127<<7; //The percussion LSB/MSB combo.
+	private String script = "";
 
 	private byte stream_melody_lh = 0, stream_melody_rh = 0, file_melody_lh = 1, file_melody_rh = 0; //Melody channels.
 
@@ -109,6 +110,32 @@ public class InstrumentProfile {
 		return this.file_melody_rh;
 	}
 
+	/** Get the Python script. */
+	public String getScript() {
+		return this.script;
+	}
+
+	/** Set the Python script. */
+	public void setScript(String script) {
+		this.script = script;
+	}
+
+	/** Set the Python script. */
+	public void setScript(File script) {
+		try {
+			BufferedReader file_reader = new BufferedReader(new FileReader(script));
+			String line = "", str_script = "";
+
+			while((line = file_reader.readLine()) != null)
+				str_script += line + '\n';
+
+			file_reader.close();
+			setScript(str_script);
+		} catch (IOException e) {
+			
+		}
+	}
+
 	/** Get the voice list from an external file. */
 	public static Voice[] getVoiceListFromFile(File voice_list_file) throws IOException {
 		BufferedReader reader = new BufferedReader(new FileReader(voice_list_file));
@@ -124,6 +151,7 @@ public class InstrumentProfile {
 			if(first_line) {
 				first_line = false;
 				for(int i=0;i<values.length;i+=1) {
+					values[i] = values[i].trim();
 					if(values[i].toUpperCase().contains("INDEX")) {
 						index = i;
 						if(values[i].contains("=")) {
@@ -174,11 +202,20 @@ public class InstrumentProfile {
 
 				//Read the voice data.
 				try {
-					voice_msb = (byte)(Integer.parseInt(values[msb]) - msb_offset);
-					voice_lsb = (byte)(Integer.parseInt(values[lsb]) - lsb_offset);
-					voice_prog = (byte)(Integer.parseInt(values[voice]) - voice_offset);
-					voice_index = Integer.parseInt(values[index]) - index_offset;
-					name = values[voice_name];
+					if(msb >= 0)
+						voice_msb = (byte)(Integer.parseInt(values[msb]) - msb_offset);
+
+					if(lsb >= 0)
+						voice_lsb = (byte)(Integer.parseInt(values[lsb]) - lsb_offset);
+
+					if(voice >= 0)
+						voice_prog = (byte)(Integer.parseInt(values[voice]) - voice_offset);
+
+					if(index >= 0)
+						voice_index = Integer.parseInt(values[index]) - index_offset;
+
+					if(voice_name >= 0)
+						name = values[voice_name];
 
 					Voice new_voice = new Voice(voice_index >= 0 ? voice_index + ". " + name : name, voice_prog, voice_lsb, voice_msb);
 					voice_list.add(new_voice);
