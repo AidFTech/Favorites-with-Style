@@ -15,5 +15,7 @@ public class MIDIPlayerOptions {
 	public byte active_chord_root = -1, active_chord_type = 0;
 	public long start_tick = 0, current_tick = 0;
 
+	public short rec_accompaniment_volume = 100, play_accompaniment_volume = 100;
+
 	public byte[] black_chord_display = {CHORD_AS_IS, CHORD_AS_IS, CHORD_AS_IS, CHORD_AS_IS, CHORD_AS_IS};
 }

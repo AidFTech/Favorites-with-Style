@@ -5,6 +5,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 
+use crate::midi_player_options::JMidiStartOptions;
 use crate::{fws_event::{GenericMIDIEvent, TimeChangeEvent}, fws_sequence::JFwsSequence};
 
 const ROOT_FIXED_TABLE: [(i8, [i8; 12]); 4] = [(0, [0, 1, 2, 10, 11, 0, 1, 11, 0, 1, 2, 11]),
@@ -209,7 +210,7 @@ bind_java_type! {
 
 impl<'local> JFwsStyle<'local> {
 	///Get a section from the sequence.
-	pub fn get_section(&self, env: &mut Env<'_>, section_name: &str) -> (Vec<TimeChangeEvent>, Vec<GenericMIDIEvent>) {
+	pub fn get_section(&self, env: &mut Env<'_>, section_name: &str, start_options: &JMidiStartOptions<'local>) -> (Vec<TimeChangeEvent>, Vec<GenericMIDIEvent>) {
 		let j_section_name = JString::from_str(env, section_name).unwrap();
 		let j_sequence = match self.j_get_section(env, j_section_name) {
 			Ok(sequence) => sequence,
@@ -220,7 +221,7 @@ impl<'local> JFwsStyle<'local> {
 		};
 
 		let sequence = env.cast_local::<JFwsSequence>(j_sequence).unwrap();
-		let (time_events, events, _, _, _) = sequence.get_all_events(env, &[]);
+		let (time_events, events, _, _, _) = sequence.get_all_events(env, start_options, &[]);
 		
 		return(time_events, events);
 	}
@@ -261,7 +262,7 @@ pub struct FwsStyle {
 
 impl <'local> FwsStyle {
 	///Get a Rust style from a Java style.
-	pub fn get(env: &mut Env<'_>, j_style: JFwsStyle<'local>) -> Self {
+	pub fn get(env: &mut Env<'_>, j_style: JFwsStyle<'local>, start_options: &JMidiStartOptions<'local>) -> Self {
 		let j_names = j_style.get_section_names(env).unwrap();
 		let name_count = j_names.len(env).unwrap();
 
@@ -277,7 +278,7 @@ impl <'local> FwsStyle {
 		let mut length_sections = Vec::new();
 
 		for s in &section_names {
-			let(times, events) = j_style.get_section(env, s);
+			let(times, events) = j_style.get_section(env, s, start_options);
 
 			event_sections.push(events);
 			time_sections.push(times);
@@ -1187,6 +1188,10 @@ pub struct StyleManager {
 
 	note_on: [[bool; 128]; 16],
 
+	rec_accomp_volume: i16,
+	start_accomp_volume: i16,
+	accomp_volume: i16,
+
 	poly_aftertouch_setting: [[i8; 128]; 16],
 	ctl_setting: [[i8; 128]; 16],
 	voice_setting: [i8; 16],
@@ -1218,6 +1223,10 @@ impl StyleManager {
 			last_style_change_tick: 0,
 			style_tpq: 192,
 			song_tpq,
+
+			rec_accomp_volume: 100,
+			start_accomp_volume: 100,
+			accomp_volume: 100,
 
 			note_ptr: 0,
 			style_len: 0,
@@ -1251,6 +1260,17 @@ impl StyleManager {
 		}
 
 		return style_manager;
+	}
+
+	///Set the starting accompaniment volume.
+	pub fn set_start_accomp_volume(&mut self, accomp_volume: i16) {
+		self.start_accomp_volume = accomp_volume;
+		self.accomp_volume = accomp_volume;
+	}
+
+	///Set the input accompaniment volume.
+	pub fn set_rec_accomp_volume(&mut self, accomp_volume: i16) {
+		self.rec_accomp_volume = accomp_volume;
 	}
 
 	///Get all style events at the current tick plus the next song tick at which a style change occurs.
@@ -1456,6 +1476,8 @@ impl StyleManager {
 					} else if command == 0xB0 {
 						if ve.len() >= 2 && (ve[1] == 0x0 || ve[1] == 0x20) {
 							voice_event = true;
+						} else if ve.len() >= 2 && ve[1] == 0x7 { //Volume.
+							ve[2] = ((ve[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as u8;
 						}
 					}
 
@@ -1501,12 +1523,20 @@ impl StyleManager {
 				}
 			}
 			0xB0 => { //Control.
-				if self.ctl_setting[channel][msg[1] as usize] == msg[2] as i8 {
+				let accomp_vol_set = msg[1] == 0x7;
+
+				let des_value = if accomp_vol_set {
+					((msg[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as u8
+				} else {
+					msg[2]
+				};
+				
+				if self.ctl_setting[channel][msg[1] as usize] == des_value as i8 {
 					return false;
 				}
 
 				if msg.len() >= 3 {
-					self.ctl_setting[channel][msg[1] as usize] = msg[2] as i8;
+					self.ctl_setting[channel][msg[1] as usize] = des_value as i8;
 				}
 			}
 			0xC0 => { //Voice.
@@ -1895,7 +1925,14 @@ impl StyleManager {
 
 							self.poly_aftertouch_setting[self.channel_map[c] as usize][note] = value;
 						} else if ev.data.len() >= 3 && (ev.data[0]&0xF0) == 0xB0 { //Control change.
-							let value = ev.data[2] as i8;
+							let volume = ev.data[1] == 0x7;
+							
+							let value = if volume {
+								((ev.data[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as i8
+							} else {
+								ev.data[2] as i8
+							};
+							
 							let ctl = ev.data[1] as usize;
 							if self.ctl_setting[self.channel_map[c] as usize][ctl] == value {
 								if !((ctl == 0x0 || ctl == 0x20) && voice_changed[self.channel_map[c] as usize]) {
@@ -1908,6 +1945,7 @@ impl StyleManager {
 							}
 
 							self.ctl_setting[self.channel_map[c] as usize][ctl] = value;
+							ev.data[2] = value as u8;
 						} else if ev.data.len() >= 2 && (ev.data[0]&0xF0) == 0xC0 { //Voice change.
 							let voice = ev.data[1];
 							if self.voice_setting[self.channel_map[c] as usize] == voice as i8 && !voice_changed[self.channel_map[c] as usize] {
@@ -2128,6 +2166,7 @@ impl StyleManager {
 
 		if found_style {
 			self.section_set = false;
+			self.style_tpq = self.styles[self.style].tpq;
 			return self.set_section_full(song_tick, new_chord, section_name, section_tick, false, parts);
 		} else {
 			return Vec::new();

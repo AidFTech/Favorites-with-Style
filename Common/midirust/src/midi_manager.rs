@@ -10,7 +10,7 @@ use midir::{MidiInput, MidiOutput};
 use crate::fws_event::GenericMIDIEvent;
 use crate::fws_song::JFWSSong;
 use crate::fws_style::{Chord, ChordBody, FwsStyle, JFwsStyle, Note, StyleManager};
-use crate::midi_player_options::JExportOptions;
+use crate::midi_player_options::{JExportOptions, JMidiStartOptions};
 use crate::{fws_sequence::JFwsSequence, midi_player_options::JMidiPlayerOptions};
 
 extern crate jni;
@@ -47,7 +47,7 @@ bind_java_type! {
 
 impl<'local> JMidiManager<'local> {
 	///Play and loop a style.
-	pub fn play_style(self, env: &mut Env<'_>, j_style: JFwsStyle) {
+	pub fn play_style(self, env: &mut Env<'_>, j_style: JFwsStyle, start_options: &JMidiStartOptions<'local>) {
 		let j_options = self.player_options(env).unwrap();
 		let g_options = env.new_global_ref(&j_options).unwrap();
 		let options = env.cast_local::<JMidiPlayerOptions>(j_options).unwrap();
@@ -85,7 +85,7 @@ impl<'local> JMidiManager<'local> {
 		};
 
 
-		let style = FwsStyle::get(env, j_style);
+		let style = FwsStyle::get(env, j_style, start_options);
 		let tpq = style.tpq;
 		let style_name = style.long_name.clone();
 
@@ -117,6 +117,12 @@ impl<'local> JMidiManager<'local> {
 		let mut style_init = true;
 		let chord_changed = Arc::new(Mutex::new(true));
 		let chord_changed_clone = Arc::clone(&chord_changed);
+
+		let rec_accomp_vol = options.rec_accompaniment_volume(env).unwrap();
+		let play_accomp_vol = options.play_accompaniment_volume(env).unwrap();
+
+		style_manager.set_rec_accomp_volume(rec_accomp_vol);
+		style_manager.set_start_accomp_volume(play_accomp_vol);
 
 		let jvm = env.get_java_vm().unwrap();
 		thread::spawn( move || {
@@ -429,7 +435,7 @@ impl<'local> JMidiManager<'local> {
 	}
 
 	///Start playing a sequence.
-	pub fn play_sequence(self, env: &mut Env<'local>, sequence: JFwsSequence<'local>, styles: Vec<FwsStyle>) {
+	pub fn play_sequence(self, env: &mut Env<'local>, sequence: JFwsSequence<'local>, styles: Vec<FwsStyle>, start_options: &JMidiStartOptions<'local>) {
 		let j_options = self.player_options(env).unwrap();
 		let g_options = env.new_global_ref(&j_options).unwrap();
 		let options = env.cast_local::<JMidiPlayerOptions>(j_options).unwrap();
@@ -471,9 +477,15 @@ impl<'local> JMidiManager<'local> {
 		let melody_lh = options.song_melody_lh(env).unwrap() as u8;
 
 		let tpq = sequence.get_tpq(env).unwrap() as u64;
-		let (time_events, note_events, key_events, chord_events, style_events) = sequence.get_all_events(env, &[melody_rh, melody_lh]);
+		let (time_events, note_events, key_events, chord_events, style_events) = sequence.get_all_events(env, start_options, &[melody_rh, melody_lh]);
 
 		let mut style_manager = StyleManager::get(&styles, tpq);
+
+		let rec_accomp_vol = options.rec_accompaniment_volume(env).unwrap();
+		let play_accomp_vol = options.play_accompaniment_volume(env).unwrap();
+
+		style_manager.set_rec_accomp_volume(rec_accomp_vol);
+		style_manager.set_start_accomp_volume(play_accomp_vol);
 
 		let jvm = env.get_java_vm().unwrap();
 		thread::spawn( move || {
@@ -1146,14 +1158,14 @@ impl<'local> JMidiManager<'local> {
 	}
 
 	///Start playing a song.
-	pub fn play_song(self, env: &mut Env<'local>, song: JFWSSong<'local>) {
+	pub fn play_song(self, env: &mut Env<'local>, song: JFWSSong<'local>, start_options: &JMidiStartOptions<'local>) {
 		let sequence = song.get_sequence(env);
-		let styles = song.get_styles(env);
-		self.play_sequence(env, sequence, styles);
+		let styles = song.get_styles(env, start_options);
+		self.play_sequence(env, sequence, styles, start_options);
 	}
 
 	///Get a generic MIDI event list.
-	pub fn get_midi_events(self, env: &mut Env<'local>, export_options: JExportOptions, sequence: JFwsSequence<'local>, styles: Vec<FwsStyle>) -> Vec<(Vec<u8>, u64)> {
+	pub fn get_midi_events(self, env: &mut Env<'local>, export_options: JExportOptions, sequence: JFwsSequence<'local>, styles: Vec<FwsStyle>, start_options: &JMidiStartOptions<'local>) -> Vec<(Vec<u8>, u64)> {
 		let j_options = self.player_options(env).unwrap();
 		let options = env.cast_local::<JMidiPlayerOptions>(j_options).unwrap();
 
@@ -1174,11 +1186,17 @@ impl<'local> JMidiManager<'local> {
 		};
 
 		let tpq = sequence.get_tpq(env).unwrap() as u64;
-		let (_, note_events, _, chord_events, style_events) = sequence.get_all_events(env, truncate_channels);
+		let (_, note_events, _, chord_events, style_events) = sequence.get_all_events(env, start_options, truncate_channels);
 
 		let mut current_tick = 0;
 
 		let mut style_manager = StyleManager::get(&styles, tpq);
+
+		let rec_accomp_vol = options.rec_accompaniment_volume(env).unwrap();
+		let play_accomp_vol = options.play_accompaniment_volume(env).unwrap();
+
+		style_manager.set_rec_accomp_volume(rec_accomp_vol);
+		style_manager.set_start_accomp_volume(play_accomp_vol);
 
 		let mut style = "".to_string();
 		let mut section = "".to_string();
@@ -1455,11 +1473,11 @@ impl<'local> JMidiManager<'local> {
 	}
 
 	///Get a MIDI event list from a song.
-	pub fn get_song_midi_events(self, env: &mut Env<'local>, export_options: JExportOptions, song: JFWSSong <'local>) -> Vec<(Vec<u8>, u64)> {
+	pub fn get_song_midi_events(self, env: &mut Env<'local>, export_options: JExportOptions, song: JFWSSong <'local>, start_options: &JMidiStartOptions<'local>) -> Vec<(Vec<u8>, u64)> {
 		let sequence = song.get_sequence(env);
-		let styles = song.get_styles(env);
+		let styles = song.get_styles(env, start_options);
 
-		return self.get_midi_events(env, export_options, sequence, styles);
+		return self.get_midi_events(env, export_options, sequence, styles, start_options);
 	}
 
 	///Start recording a sequence.

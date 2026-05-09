@@ -58,7 +58,26 @@ bind_java_type! {
 			sig = jlong,
 			name = "current_tick",
 		},
+
+		pub rec_accompaniment_volume {
+			sig = jshort,
+			name = "rec_accompaniment_volume",
+		},
+
+		pub play_accompaniment_volume {
+			sig = jshort,
+			name = "play_accompaniment_volume",
+		},
 	},
+}
+
+bind_java_type! {
+	rust_type = pub JMidiStartOptions,
+	java_type = options.MIDIStartOptions,
+
+	fields {
+		pub substitutions: voices.SequenceSubstitution[],
+	}
 }
 
 bind_java_type! {

@@ -17,6 +17,7 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
 import options.RecordLoadOptions;
+import voices.Voice;
 
 public class FWSSequence {
 	private int tpq = 192;
@@ -166,6 +167,35 @@ public class FWSSequence {
 				return (FWSVoiceEvent)channel_events.get(last_index);
 		} else
 			return (FWSVoiceEvent)channel_events.get(index);
+	}
+
+	/** Get all voices used in the sequence. */
+	public Voice[] getAllVoices() {
+		ArrayList<Voice> voice_vec = new ArrayList<>(0);
+
+		for(int c=0;c<channel_events.length;c+=1) {
+			for(int i=0;i<channel_events[c].size();i+=1) {
+				if(channel_events[c].get(i) instanceof FWSVoiceEvent) {
+					FWSVoiceEvent voice_event = (FWSVoiceEvent)channel_events[c].get(i);
+					Voice test_voice = new Voice("", voice_event.voice, voice_event.voice_lsb, voice_event.voice_msb);
+					boolean voice_found = false;
+
+					for(int v=0;v<voice_vec.size();v+=1) {
+						if(test_voice.match(voice_vec.get(v))) {
+							voice_found = true;
+							break;
+						}
+					}
+
+					if(!voice_found)
+						voice_vec.add(test_voice);
+				}
+			}
+		}
+
+		Voice[] voices = new Voice[voice_vec.size()];
+		voice_vec.toArray(voices);
+		return voices;
 	}
 
 	/** Get the MIDI control setting at the specified tick. */

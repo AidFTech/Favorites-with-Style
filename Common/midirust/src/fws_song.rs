@@ -5,6 +5,7 @@ use jni::objects::JString;
 use crate::fws_sequence::JFwsSequence;
 use crate::fws_style::FwsStyle;
 use crate::fws_style::JFwsStyle;
+use crate::midi_player_options::JMidiStartOptions;
 
 bind_java_type! {
 	rust_type = pub JFWSSong,
@@ -25,7 +26,7 @@ bind_java_type! {
 
 impl<'local> JFWSSong<'local> {
 	///Get all styles from the song.
-	pub fn get_styles(&self, env: &mut Env<'_>) -> Vec<FwsStyle> {
+	pub fn get_styles(&self, env: &mut Env<'_>, start_options: &JMidiStartOptions<'local>) -> Vec<FwsStyle> {
 		let j_style_names = self.get_style_names(env).unwrap();
 		let mut style_names = Vec::new();
 
@@ -40,7 +41,7 @@ impl<'local> JFWSSong<'local> {
 			let j_style_name = JString::new(env, &s).unwrap();
 			let j_style_obj = self.get_style(env, j_style_name).unwrap();
 			let j_style = env.cast_local::<JFwsStyle>(j_style_obj).unwrap();
-			styles.push(FwsStyle::get(env, j_style));
+			styles.push(FwsStyle::get(env, j_style, start_options));
 		}
 
 		return styles;

@@ -6,11 +6,11 @@ Favorites with Style, or FWS for short, is a Java-based GUI MIDI arranger design
 
 For Casio users, “Voice” = Tone and “Style” = Rhythm.
 
-<img width="1920" height="1170" alt="image" src="https://github.com/user-attachments/assets/38a2e0b3-4ad0-48ec-b0f8-c2291ea0170d" />
+![](https://github.com/user-attachments/assets/38a2e0b3-4ad0-48ec-b0f8-c2291ea0170d "image")
 
 The defining feature of Favorites with Style is the “Style” part. Having to manually define accompaniment in a MIDI song can be a time-consuming process and error-prone if you want the accompaniment to emulate a style on your keyboard. Favorites with Style allows you to add accompaniment in a few MIDI events. Simply load or define the desired style for your song and use events to define how the style plays and what chords are output. When you play the song, the accompaniment is automatically calculated based on your input, as if you were playing it on your keyboard. There is even a simulated keyboard display for a more authentic experience.
 
-<img width="515" height="215" alt="image" src="https://github.com/user-attachments/assets/e15b92f2-9613-4e36-8357-aab20fdbf947" />
+![](https://github.com/user-attachments/assets/e15b92f2-9613-4e36-8357-aab20fdbf947 "image")
 
 You can also define custom styles to expand the library of your instrument, even if it doesn’t support custom styles on its own. The style editor can play back any section of a style in a loop and automatically changes the output based on chord input from your keyboard.
 
@@ -48,17 +48,21 @@ Currently, the following features are available in Favorites with Style:
 
   - Yamaha Chord Display: Chords can be displayed on any compatible Yamaha instrument.
 
+- Instrument Profiles: Every keyboard has a different set of available voices, features, system exclusive events, title handling modes, among other things. Instrument profiles define voice lists, how chord and fingering display is triggered (if supported), and any other model-specific MIDI events to get the most out of an instrument in Favorites with Style.
+
+- Voice Substitutions: When playing a song written for one type of keyboard on another, certain voices (particularly drum kits) may need to be redefined for the new instrument. This substitution will be performed automatically during play or export (not changed in the original file) to ensure full compatibility with the target instrument.
+
 ### To Do/Planned
 
 - Accelerator Functions such as Cut/Copy/Paste
 
-- Instrument Profiles: Every keyboard has a different set of available voices, features, system exclusive events, title handling modes, among other things. Instrument profiles will define voice lists, how chord and fingering display is triggered (if supported), and any other model-specific MIDI events to get the most out of an instrument in Favorites with Style.
+- Instrument Profiles:
 
   - Casio Chord/Fingering Display: Currently, I only have the sysex syntax for chord name display on Yamaha PSR and PSR-E keyboards. It is possible to display this information on Casio instruments as well, as shown in [these](https://www.youtube.com/watch?v=Sn-iFQpB4ek) [videos](https://www.youtube.com/watch?v=rXEI-dPivvE).
 
   - Yamaha Live Chord Display: The sysex syntax I have for Yamaha chord names only seems to work for loaded songs, not streamed playback to the instrument. This may work for higher-end instruments but I have not tried it.
 
-- Voice Substitutions: When playing a song written for one type of keyboard on another, certain voices (particularly drum kits) may need to be redefined for the new instrument. This substitution will be performed automatically during play or export (not changed in the original file) to ensure full compatibility with the target instrument.
+- Voice Substitutions:
 
   - Note Substitutions: For older keyboards, notably Casio’s basic A2 keyboards; the percussion map has claves where the vibraslap would normally be. The percussion map before the bass drum is also different between Casio and Yamaha instruments. Note substitutions would automatically play the correct percussion sound when playing songs between instruments.
 

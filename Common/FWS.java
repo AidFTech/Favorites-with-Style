@@ -2,7 +2,7 @@ package controllers;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -25,7 +25,7 @@ public abstract class FWS {
 	protected MIDIManager midi_manager;
 	protected GlobalOptions global_options = new GlobalOptions();
 
-	protected Map<String, InstrumentProfile> instrument_profiles = new HashMap<>();
+	protected Map<String, InstrumentProfile> instrument_profiles = new LinkedHashMap<>();
 	protected InstrumentProfile active_profile = null;
 	protected String active_instrument = "";
 
@@ -37,8 +37,11 @@ public abstract class FWS {
 		midi_manager = new MIDIManager(this);
 
 		loaded_song = new FWSSong();
-
 		save_load_controller.initFWS();
+
+		loaded_song.getSongMetadata().target_instrument = active_instrument;
+		if(active_profile != null)
+			loaded_song.getSongMetadata().target_instrument_profile = active_profile.getInstrumentFamily();
 	}
 
 	/** Load a song. */

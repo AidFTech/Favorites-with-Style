@@ -427,6 +427,10 @@ public class SaveLoadController {
 					final byte stream_rh = Byte.parseByte(melody_stream_rh), stream_lh = Byte.parseByte(melody_stream_lh);
 					final byte file_rh = Byte.parseByte(melody_file_rh), file_lh = Byte.parseByte(melody_file_lh);
 					profile.setMelodyChannels(stream_rh, stream_lh, file_rh, file_lh);
+
+					String accomp_volume = main_ini.get("InstrumentFamily", "AccompVol");
+					if(accomp_volume != null)
+						profile.setAccompanimentVolume(Short.parseShort(accomp_volume));
 				} catch (IOException | NumberFormatException e) {
 					continue;
 				}
@@ -809,6 +813,18 @@ public class SaveLoadController {
 		lh_channel.setTextContent(Byte.toString(metadata.melody_lh_channel));
 		root_element.appendChild(lh_channel);
 
+		Element accomp_vol = song_doc.createElement("AccompVol");
+		accomp_vol.setTextContent(Short.toString(metadata.record_accompaniment_vol));
+		root_element.appendChild(accomp_vol);
+
+		Element instrument_profile = song_doc.createElement("InstrumentProfile");
+		instrument_profile.appendChild(song_doc.createTextNode(metadata.target_instrument_profile));
+		root_element.appendChild(instrument_profile);
+
+		Element instrument = song_doc.createElement("Instrument");
+		instrument.appendChild(song_doc.createTextNode(metadata.target_instrument));
+		root_element.appendChild(instrument);
+
 		TransformerFactory transformer_factory = TransformerFactory.newInstance();
 		Transformer transformer = transformer_factory.newTransformer();
 
@@ -853,6 +869,12 @@ public class SaveLoadController {
 					metadata.melody_lh_channel = Byte.parseByte(element.getTextContent());
 				else if(param.equalsIgnoreCase("RightChannel"))
 					metadata.melody_rh_channel = Byte.parseByte(element.getTextContent());
+				else if(param.equalsIgnoreCase("InstrumentProfile"))
+					metadata.target_instrument_profile = element.getTextContent();
+				else if(param.equalsIgnoreCase("Instrument"))
+					metadata.target_instrument = element.getTextContent();
+				else if(param.equalsIgnoreCase("AccompVol"))
+					metadata.record_accompaniment_vol = Short.parseShort(element.getTextContent());
 			}
 		}
 	}

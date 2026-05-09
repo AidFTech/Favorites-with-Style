@@ -1,8 +1,8 @@
 package voices;
 
-public class Voice {
-	public byte voice = 0, lsb = 0, msb = 0;
-	public String name = "";
+public final class Voice {
+	public final byte voice, lsb, msb;
+	public final String name;
 
 	private static final String[] gm_names = {
 									"Grand Piano",
@@ -164,6 +164,14 @@ public class Voice {
 	/** Return whether this voice matches the supplied data. */
 	public boolean match(byte msb, byte lsb, byte program) {
 		if(this.msb == msb && this.lsb == lsb && this.voice == program)
+			return true;
+		else
+			return false;
+	}
+
+	/** Return whether the voices match. */
+	public boolean match(Voice test_voice) {
+		if(this.msb == test_voice.msb && this.lsb == test_voice.lsb && this.voice == test_voice.voice)
 			return true;
 		else
 			return false;

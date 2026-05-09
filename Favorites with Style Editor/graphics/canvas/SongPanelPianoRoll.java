@@ -155,17 +155,22 @@ public class SongPanelPianoRoll extends JLayeredPane {
 				if(vp_parent.getPlacementLength() == NoteToggle.NOTE_TOGGLE_DRAG && dx > 0 && my >= 0 && my < FWS.event_height*128) {
 					final int snap = vp_parent.getSnap(), ppq = vp_parent.getController().getGlobalOptions().ppq;
 					final long duration = (long) ((active_sequence.getXTime(rx+dx,ppq))/(snap)*snap) - (long)active_sequence.getXTime(rx,ppq)/snap*snap;
-					vp_parent.addNoteEvent(active_sequence.getXTime(rx,ppq)/snap*snap, (byte)(127-my/FWS.event_height), duration);
+
+					if(duration > 0)
+						vp_parent.addNoteEvent(active_sequence.getXTime(rx,ppq)/snap*snap, (byte)(127-my/FWS.event_height), duration);
+					
 					repaint();
 				}
 			}
 
 			@Override
 			public void mouseExited(MouseEvent arg0) {
-				mx = -1;
-				my = -1;
-				if(head != null)
-					head.recolor(-1);
+				if(vp_parent.getPlacementLength() == null) {
+					mx = -1;
+					my = -1;
+					if(head != null)
+						head.recolor(-1);
+				}
 				repaint();
 			}
 		});

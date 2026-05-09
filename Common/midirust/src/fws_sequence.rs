@@ -3,6 +3,8 @@ use jni::{Env, bind_java_type, jni_sig, jni_str};
 use jni::JValue::Int;
 
 use crate::fws_event::{AccidentalChangeEvent, ChordChangeEvent, GenericMIDIEvent, JFWSChordEvent, JFWSKeySignatureEvent, JFWSNoteEvent, JFWSStyleEvent, JFWSTempoEvent, JFWSVoiceEvent, StyleChangeEvent, TimeChangeEvent};
+use crate::fws_voice::JSubstitution;
+use crate::midi_player_options::JMidiStartOptions;
 
 extern crate jni;
 
@@ -36,7 +38,7 @@ bind_java_type! {
 
 impl<'local> JFwsSequence<'local> {
 	///Get all sequence events as Rust MIDI events. Truncate the listed channels.
-	pub fn get_all_events(self, env: &mut Env<'_>, truncate: &[u8]) -> (Vec<TimeChangeEvent>, Vec<GenericMIDIEvent>, Vec<AccidentalChangeEvent>, Vec<ChordChangeEvent>, Vec<StyleChangeEvent>) {
+	pub fn get_all_events(self, env: &mut Env<'_>, start_options: &JMidiStartOptions<'local>, truncate: &[u8]) -> (Vec<TimeChangeEvent>, Vec<GenericMIDIEvent>, Vec<AccidentalChangeEvent>, Vec<ChordChangeEvent>, Vec<StyleChangeEvent>) {
 		let common_events = env.call_method(&self, jni_str!("getCommonEvents"), jni_sig!(() -> java.util.ArrayList), &[]).unwrap().l().unwrap();
 		let common_events_size = env.call_method(&common_events, jni_str!("size"), jni_sig!(() -> jint), &[]).unwrap().i().unwrap();
 
@@ -47,6 +49,17 @@ impl<'local> JFwsSequence<'local> {
 
 		let mut chord_event_list = Vec::new();
 		let mut style_event_list = Vec::new();
+
+		let mut substitution_map = Vec::new();
+		let j_substitutions = start_options.substitutions(env).unwrap();
+		let substitution_count = j_substitutions.len(env).unwrap();
+
+		for s in 0..substitution_count {
+			let j_substitution = j_substitutions.get_element(env, s).unwrap();
+			let substitution = env.cast_local::<JSubstitution>(j_substitution).unwrap();
+
+			substitution_map.push(substitution.get_substitution(env));
+		}
 
 		for e in 0..common_events_size {
 			let j_event = env.call_method(&common_events, jni_str!("get"), jni_sig!((jint) -> JObject), &[Int(e)]).unwrap().l().unwrap();
@@ -143,9 +156,18 @@ impl<'local> JFwsSequence<'local> {
 			} else if env.is_instance_of(&ev, jni_str!("fwsevents.FWSVoiceEvent")).unwrap() {	
 				let voice_event = env.cast_local::<JFWSVoiceEvent>(ev).unwrap();
 
-				let voice_voice = voice_event.voice(env).unwrap() as u8;
-				let voice_lsb = voice_event.voice_lsb(env).unwrap() as u8;
-				let voice_msb = voice_event.voice_msb(env).unwrap() as u8;
+				let mut voice_voice = voice_event.voice(env).unwrap() as u8;
+				let mut voice_lsb = voice_event.voice_lsb(env).unwrap() as u8;
+				let mut voice_msb = voice_event.voice_msb(env).unwrap() as u8;
+
+				for sub in &substitution_map {
+					if voice_msb == sub.0.0 && voice_lsb == sub.0.1 && voice_voice == sub.0.2 {
+						voice_msb = sub.1.0;
+						voice_lsb = sub.1.1;
+						voice_voice = sub.1.2;
+						break;
+					}
+				}
 
 				let voice_channel = voice_event.channel(env).unwrap() as u8;
 

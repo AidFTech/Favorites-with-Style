@@ -5,18 +5,22 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
 public class InstrumentProfile {
-	private Map<String, Voice[]> voice_list = new HashMap<>();
+	private Map<String, Voice[]> voice_list = new LinkedHashMap<>();
 	private String instrument_family = ""; //E.g. A^2, HL, AHL, PSR-E, DGX, Tyros, etc.
 
 	private int percussion_header = 127<<7; //The percussion LSB/MSB combo.
 	private String script = "";
 
 	private byte stream_melody_lh = 0, stream_melody_rh = 0, file_melody_lh = 1, file_melody_rh = 0; //Melody channels.
+
+	private short accompaniment_volume = 100;
+
+	private Map<String, Map<String, ProfileSubstitution[]>> substitutions = new LinkedHashMap<>();
 
 	/** Get a voice list. */
 	public Voice[] getVoiceList(String instrument_name) {
@@ -72,6 +76,11 @@ public class InstrumentProfile {
 		this.instrument_family = instrument_family;
 	}
 
+	/** Get the known substitution list. */
+	public Map<String, Map<String, ProfileSubstitution[]>> getSubstitutionList() {
+		return this.substitutions;
+	}
+
 	/** Get the percussion header. */
 	public int getPercussionHeader() {
 		return this.percussion_header;
@@ -108,6 +117,16 @@ public class InstrumentProfile {
 	/** Get the file melody RH channel. */
 	public byte getFileMelodyRH() {
 		return this.file_melody_rh;
+	}
+
+	/** Get the accompaniment volume. */
+	public short getAccompanimentVolume() {
+		return this.accompaniment_volume;
+	}
+
+	/** Set the accompaniment volume. */
+	public void setAccompanimentVolume(final short accompaniment_volume) {
+		this.accompaniment_volume = accompaniment_volume;
 	}
 
 	/** Get the Python script. */

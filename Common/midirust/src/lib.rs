@@ -5,7 +5,7 @@ use midir::{MidiInput, MidiOutput};
 
 use midi_device::JMidiDevice;
 
-use crate::{fws_event::JFWSNoteEvent, fws_sequence::JFwsSequence, fws_song::JFWSSong, fws_style::JFwsStyle, fws_voice::JVoice, midi_manager::JMidiManager, midi_player_options::JExportOptions};
+use crate::{fws_event::JFWSNoteEvent, fws_sequence::JFwsSequence, fws_song::JFWSSong, fws_style::JFwsStyle, fws_voice::JVoice, midi_manager::JMidiManager, midi_player_options::{JExportOptions, JMidiStartOptions}};
 
 extern crate jni;
 extern crate midir;
@@ -177,9 +177,9 @@ pub fn Java_controllers_MIDIManager_playPlacedNote<'local>(mut unowned_env: EnvU
 ///Play a MIDI sequence.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_controllers_MIDIManager_playSequence<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, sequence: JFwsSequence<'local>) {
+pub fn Java_controllers_MIDIManager_playSequenceJNI<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, sequence: JFwsSequence<'local>, start_options: JMidiStartOptions<'local>) {
 	let _ = env.with_env(|env| -> Result<_, Error> {
-		this.play_sequence(env, sequence, Vec::new());
+		this.play_sequence(env, sequence, Vec::new(), &start_options);
 		Ok(JValue::Void)
 	});
 }
@@ -197,9 +197,9 @@ pub fn Java_controllers_MIDIManager_recordStart<'local>(mut env: EnvUnowned<'loc
 ///Play a style.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_controllers_MIDIManager_playStyle<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, style: JFwsStyle) {
+pub fn Java_controllers_MIDIManager_playStyleJNI<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, style: JFwsStyle, start_options: JMidiStartOptions<'local>) {
 	let _ = env.with_env(|env| -> Result<_, Error> {
-		this.play_style(env, style);
+		this.play_style(env, style, &start_options);
 		Ok(JValue::Void)
 	});
 }
@@ -207,9 +207,9 @@ pub fn Java_controllers_MIDIManager_playStyle<'local>(mut env: EnvUnowned<'local
 ///Play a song.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_controllers_MIDIManager_playSong<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, song: JFWSSong<'local>) {
+pub fn Java_controllers_MIDIManager_playSongJNI<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, song: JFWSSong<'local>, start_options: JMidiStartOptions<'local>) {
 	let _ = env.with_env(|env| -> Result<_, Error> {
-		this.play_song(env, song);
+		this.play_song(env, song, &start_options);
 		Ok(JValue::Void)
 	});
 }
@@ -217,11 +217,11 @@ pub fn Java_controllers_MIDIManager_playSong<'local>(mut env: EnvUnowned<'local>
 ///Get MIDI events from a song.
 #[no_mangle]
 #[allow(non_snake_case)]
-pub fn Java_controllers_MIDIManager_calculateSongMidiEvents<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, song: JFWSSong<'local>, export_options: JExportOptions<'local>, midi_events: JObject, midi_ticks: JObject) {
+pub fn Java_controllers_MIDIManager_calculateSongMidiEvents<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, song: JFWSSong<'local>, export_options: JExportOptions<'local>, start_options: JMidiStartOptions<'local>, midi_events: JObject, midi_ticks: JObject) {
 	let _ = env.with_env(|env| -> Result<_, Error> {
 		let sequence = song.get_sequence(env);
-		let styles = song.get_styles(env);
-		let r_midi_events = this.get_midi_events(env, export_options, sequence, styles);
+		let styles = song.get_styles(env, &start_options);
+		let r_midi_events = this.get_midi_events(env, export_options, sequence, styles, &start_options);
 
 		for ev in r_midi_events {
 			let j_event = JByteArray::new(env, ev.0.len()).unwrap();

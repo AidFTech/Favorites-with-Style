@@ -17,12 +17,16 @@ import fwsevents.FWSSequence;
 import fwsevents.FWSTempoEvent;
 import fwsevents.FWSTimeSignatureEvent;
 import style.Style;
+import voices.SequenceSubstitution;
+import voices.Voice;
 
 public class FWSSong {
 	private FWSSequence song_sequence;
 	private FWSSongMetadata song_metadata;
 
 	private Map<String, Style> styles = new LinkedHashMap<>();
+
+	private SequenceSubstitution[] substitutions = new SequenceSubstitution[0];
 
 	public FWSSong() {
 		song_sequence = new FWSSequence();
@@ -39,6 +43,18 @@ public class FWSSong {
 	/** Get the song metadata. */
 	public FWSSongMetadata getSongMetadata() {
 		return this.song_metadata;
+	}
+
+	/** Get the list of voice substitutions. */
+	public SequenceSubstitution[] getSubstitutions() {
+		return this.substitutions;
+	}
+
+	/** Set the substitution list. */
+	public void setSubstitutions(SequenceSubstitution[] substitutions) {
+		this.substitutions = new SequenceSubstitution[substitutions.length];
+		for(int i=0;i<substitutions.length;i+=1)
+			this.substitutions[i] = substitutions[i];
 	}
 
 	/** Add a style to the list. */
@@ -88,6 +104,48 @@ public class FWSSong {
 			for(int i=0;i<channel_events.size();i+=1)
 				song_sequence.addEvent(channel_events.get(i));
 		}
+	}
+
+	/** Get all voices used in the song. */
+	public Voice[] getAllVoices() {
+		Voice[] main_voices = song_sequence.getAllVoices();
+
+		ArrayList<Voice> voice_vec = new ArrayList<>(0);
+		for(Voice voice : main_voices)
+			voice_vec.add(voice);
+
+		for(Entry<String, Style> style : styles.entrySet()) {
+			Style test_style = style.getValue();
+			FWSSequence style_sequence = test_style.getFullSequence();
+
+			Voice[] style_voices = style_sequence.getAllVoices();
+			for(Voice voice : style_voices) {
+				boolean voice_found = false;
+				for(int v=0;v<voice_vec.size();v+=1) {
+					if(voice.match(voice_vec.get(v))) {
+						voice_found = true;
+						break;
+					}
+				}
+
+				if(!voice_found)
+					voice_vec.add(voice);
+			}
+		}
+
+		Voice[] voices = new Voice[voice_vec.size()];
+		voice_vec.toArray(voices);
+		return voices;
+	}
+
+	/** Get the target instrument profile. */
+	public String getTargetProfile() {
+		return this.song_metadata.target_instrument_profile;
+	}
+
+	/** Get the target instrument. */
+	public String getTargetInstrument() {
+		return this.song_metadata.target_instrument;
 	}
 
 	/** Load a song from a legacy FWS file. */

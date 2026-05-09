@@ -46,7 +46,7 @@ public class FWSNoteEvent extends FWSEvent {
 
 	@Override
 	public String toString() {
-		String desc = "Channel " + channel + ": ";
+		String desc = "Channel " + (channel + 1) + ": ";
 		desc += note_map[note%12];
 		desc += Integer.toString(note/12 - 1) + ", ";
 		desc += "Vel. " + velocity + ", ";

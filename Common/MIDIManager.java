@@ -2,6 +2,8 @@ package controllers;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.Sequence;
@@ -29,10 +31,13 @@ import fwsevents.FWSSequence;
 import fwsevents.FWSStyleChangeEvent;
 import options.MIDIExportOptions;
 import options.MIDIPlayerOptions;
+import options.MIDIStartOptions;
 import song.FWSSong;
 import style.ChordBody;
 import style.Style;
 import voices.InstrumentProfile;
+import voices.ProfileSubstitution;
+import voices.SequenceSubstitution;
 import voices.Voice;
 
 public class MIDIManager {
@@ -51,19 +56,19 @@ public class MIDIManager {
 	public native void playPlacedNote(FWSNoteEvent note, Voice voice);
 
 	/** Play a sequence. */
-	public native void playSequence(FWSSequence sequence);
+	private native void playSequenceJNI(FWSSequence sequence, MIDIStartOptions start_options);
 
 	/** Play a song with chord and style changes. */
-	public native void playSong(FWSSong song);
+	private native void playSongJNI(FWSSong song, MIDIStartOptions start_options);
 
 	/** Start recording. */
 	public native void recordStart();
 
 	/** Start playing a style. */
-	public native void playStyle(Style style);
+	private native void playStyleJNI(Style style, MIDIStartOptions start_options);
 
 	/** Get MIDI events from a song */
-	private native void calculateSongMidiEvents(FWSSong song, MIDIExportOptions export_options, ArrayList<byte[]> midi_events, ArrayList<Long> midi_ticks);
+	private native void calculateSongMidiEvents(FWSSong song, MIDIExportOptions export_options, MIDIStartOptions start_options, ArrayList<byte[]> midi_events, ArrayList<Long> midi_ticks);
 
 	static {
 		File midirust = new File("midirust/target/debug/libmidirust.so");
@@ -147,6 +152,303 @@ public class MIDIManager {
 		controller.handleRecordedEvents(data, us_ticks);
 	}
 
+	/** Play a song with chord and style changes. */
+	public void playSong(FWSSong song) {
+		this.player_options.rec_accompaniment_volume = song.getSongMetadata().record_accompaniment_vol;
+		if(controller.active_profile != null)
+			this.player_options.play_accompaniment_volume = controller.active_profile.getAccompanimentVolume();
+		else 
+			this.player_options.play_accompaniment_volume = this.player_options.rec_accompaniment_volume;
+
+		MIDIStartOptions start_options = new MIDIStartOptions();
+		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+
+		this.playSongJNI(song, start_options);
+	}
+
+	/** Play a sequence. */
+	public void playSequence(FWSSequence sequence) {
+		MIDIStartOptions start_options = new MIDIStartOptions();
+		FWSSong song = controller.loaded_song;
+
+		this.player_options.rec_accompaniment_volume = song.getSongMetadata().record_accompaniment_vol;
+		if(controller.active_profile != null)
+			this.player_options.play_accompaniment_volume = controller.active_profile.getAccompanimentVolume();
+		else 
+			this.player_options.play_accompaniment_volume = this.player_options.rec_accompaniment_volume;
+
+		start_options.substitutions = getSubstitutionMap(sequence.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+
+		this.playSequenceJNI(sequence, start_options);
+	}
+
+	/** Play a style. */
+	public void playStyle(Style style) {
+		MIDIStartOptions start_options = new MIDIStartOptions();
+		FWSSong song = controller.loaded_song;
+
+		this.player_options.rec_accompaniment_volume = song.getSongMetadata().record_accompaniment_vol;
+		if(controller.active_profile != null)
+			this.player_options.play_accompaniment_volume = controller.active_profile.getAccompanimentVolume();
+		else 
+			this.player_options.play_accompaniment_volume = this.player_options.rec_accompaniment_volume;
+		
+		start_options.substitutions = getSubstitutionMap(style.getFullSequence().getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+
+		this.playStyleJNI(style, start_options);
+	}
+
+	/** Get a substitution map. */
+	private SequenceSubstitution[] getSubstitutionMap(Voice[] sequence_voices, SequenceSubstitution[] sequence_substitutions, String sequence_profile, String sequence_instrument) {
+		if(controller.active_profile == null)
+			return new SequenceSubstitution[0];
+
+		ArrayList<SequenceSubstitution> substitutions_vec = new ArrayList<>(0);
+
+		final String target_profile = controller.getInstrumentProfileName(), target_instrument = controller.getInstrumentName();
+
+		if(isSameInstrumentProfile(target_profile, target_instrument, sequence_profile, sequence_instrument))
+			return new SequenceSubstitution[0];
+
+		final byte target_percussion_msb = (byte) (controller.active_profile.getPercussionHeader()>>7), target_percussion_lsb = (byte) (controller.active_profile.getPercussionHeader()&0x7F);
+		Voice[] instrument_voices = controller.getVoiceList();
+
+		Map<String, Map<String, ProfileSubstitution[]>> profile_substitution_map = controller.active_profile.getSubstitutionList();
+
+		ArrayList<ProfileSubstitution> profile_substitutions = new ArrayList<>(0);
+
+		if(!sequence_profile.isBlank() && profile_substitution_map.containsKey(sequence_profile)) {
+			Map<String, ProfileSubstitution[]> instrument_susbtitution_map = profile_substitution_map.get(sequence_profile);
+			if(!sequence_instrument.isBlank() && instrument_susbtitution_map.containsKey(sequence_instrument)) {
+				ProfileSubstitution[] instrument_substitutions = instrument_susbtitution_map.get(sequence_instrument);
+				for(ProfileSubstitution substitution: instrument_substitutions)
+					profile_substitutions.add(substitution);
+			} else {
+				for(Entry<String, ProfileSubstitution[]> instrument: instrument_susbtitution_map.entrySet()) {
+					ProfileSubstitution[] instrument_substitutions = instrument.getValue();
+					for(ProfileSubstitution substitution: instrument_substitutions)
+						profile_substitutions.add(substitution);
+				}
+			}
+		} else {
+			for(Entry<String, Map<String, ProfileSubstitution[]>> profile_map: profile_substitution_map.entrySet()) {
+				Map<String, ProfileSubstitution[]> profile = profile_map.getValue();
+				for(Entry<String, ProfileSubstitution[]> instrument: profile.entrySet()) {
+					ProfileSubstitution[] instrument_substitutions = instrument.getValue();
+					for(ProfileSubstitution substitution: instrument_substitutions)
+						profile_substitutions.add(substitution);
+				}
+			}
+		}
+
+		for(Voice voice : sequence_voices) {
+			boolean subbed = false;
+
+			//Check the song/sequence.
+			for(SequenceSubstitution substitution : sequence_substitutions) {
+				if(substitution.getVoice().match(voice)) {
+					for(Voice alternate : substitution.getAlternates()) {
+						if(Voice.matchVoice(instrument_voices, alternate.voice, alternate.lsb, alternate.msb) != null) {
+							substitutions_vec.add(new SequenceSubstitution(voice, alternate));
+							subbed = true;
+							break;
+						}
+					}
+				}
+				if(subbed)
+					break;
+			}
+
+			if(subbed)
+				continue;
+
+			//Nothing from the song. Check profile substitutions.
+			for(ProfileSubstitution substitution: profile_substitutions) {
+				if(substitution.getOriginal().match(voice)) {
+					if((substitution.getProfile().isBlank() || sequence_profile.isBlank()) || substitution.getProfile().equalsIgnoreCase(sequence_profile)) {
+						substitutions_vec.add(new SequenceSubstitution(voice, substitution.getAlternate()));
+						subbed = true;
+						break;
+					}
+				}
+			}
+
+			if(subbed)
+				continue;
+
+			//Does the voice exist in the target list?
+			if(Voice.matchVoice(instrument_voices, voice.voice, voice.lsb, voice.msb) != null)
+				continue; //Substitution not needed.
+
+			boolean is_percussion = false;
+
+			//Does this voice exist anywhere in the controller libraries?
+			InstrumentProfile sequence_profile_obj = controller.getInstrumentProfile(sequence_profile);
+			if(sequence_profile_obj != null) {
+				Map<String, Map<String, ProfileSubstitution[]>> other_profile_map = sequence_profile_obj.getSubstitutionList();
+				Map<String, ProfileSubstitution[]> target_sub_profile_obj = other_profile_map.get(target_profile);
+
+				final byte sequence_percussion_msb = (byte)(sequence_profile_obj.getPercussionHeader()>>7), sequence_percussion_lsb = (byte)(sequence_profile_obj.getPercussionHeader()&0x7F);
+
+				if(target_sub_profile_obj != null) {
+					ProfileSubstitution[] target_substitution_list = target_sub_profile_obj.get(target_instrument);
+					if(!target_instrument.isBlank() && target_substitution_list != null) {
+						for(ProfileSubstitution substitution: target_substitution_list) {
+							if(substitution.getAlternate().match(voice)) {
+								substitutions_vec.add(new SequenceSubstitution(voice, substitution.getOriginal()));
+								subbed = true;
+								break;
+							}
+						}
+					} else {
+						for(Entry<String, ProfileSubstitution[]> target_substitution_map: target_sub_profile_obj.entrySet()) {
+							ProfileSubstitution[] substitution_list = target_substitution_map.getValue();
+							for(ProfileSubstitution substitution: substitution_list) {
+								if(substitution.getAlternate().match(voice)) {
+									substitutions_vec.add(new SequenceSubstitution(voice, substitution.getOriginal()));
+									subbed = true;
+									break;
+								}
+							}
+
+							if(subbed)
+								break;
+						}
+					}
+				}
+
+				if(!subbed) {
+					final boolean sequence_percussion = (voice.msb == sequence_percussion_msb && voice.lsb == sequence_percussion_lsb);
+					is_percussion = sequence_percussion;
+					Voice[] sequence_voice_list = sequence_profile_obj.getVoiceList(sequence_instrument);
+
+					if(sequence_voice_list == null) {
+						InstrumentProfile test_profile_obj = controller.instrument_profiles.get(sequence_profile);
+						String[] test_instruments = test_profile_obj.getInstrumentNames();
+						for(String test_instrument: test_instruments) {
+							if(isSameInstrumentProfile(sequence_profile, sequence_instrument, sequence_profile, test_instrument)) {
+								sequence_voice_list = sequence_profile_obj.getVoiceList(test_instrument);
+								break;
+							}
+						}
+					}
+
+					if(!sequence_instrument.isBlank() && sequence_voice_list != null) {
+						Voice match = Voice.matchVoice(sequence_voice_list, voice.voice, voice.lsb, voice.msb);
+						if(match != null) {
+							ArrayList<Voice> gm_matches = new ArrayList<>(0);
+							for(Voice instrument_voice: instrument_voices) {
+								if((sequence_percussion && !(instrument_voice.msb == target_percussion_msb && instrument_voice.lsb == target_percussion_lsb)) ||
+									!sequence_percussion && instrument_voice.msb == target_percussion_msb && instrument_voice.lsb == target_percussion_lsb)
+									continue;
+
+								if(instrument_voice.voice == voice.voice || sequence_percussion)
+									gm_matches.add(instrument_voice);
+							}
+
+							int[] keyword_count = new int[gm_matches.size()];
+							float[] keyword_match = new float[gm_matches.size()];
+							for(int v=0;v<gm_matches.size();v+=1) {
+								String voice_name = gm_matches.get(v).name;
+								if(voice_name.contains(".")) {
+									final int index_dot = voice_name.indexOf(".");
+									String num = voice_name.substring(0, index_dot);
+									try {
+										Integer.parseInt(num);
+										voice_name = voice_name.substring(index_dot + 1).trim();
+									} catch(NumberFormatException e) {
+
+									}
+								}
+								
+								String[] voice_name_split = voice_name.split(" ");
+								
+								int matches = 0;
+								int voice_name_len = voice_name_split.length;
+								for(String split_name: voice_name_split) {
+									if(split_name.contains(".")) {
+										final int index_dot = split_name.indexOf(".");
+										String num = split_name.substring(0, index_dot);
+										try {
+											Integer.parseInt(num);
+											if(voice_name_len >= 1)
+												voice_name_len -= 1;
+											continue;
+										} catch(NumberFormatException e) {
+
+										}
+									}
+
+									if(match.name.toUpperCase().contains(split_name.toUpperCase()))
+										matches += 1;
+								}
+
+								keyword_count[v] = matches;
+								keyword_match[v] = (float)matches/((float)voice_name_len);
+							}
+
+							if(keyword_count.length > 0) {
+								int max_index = 0;
+								float max = 0;
+								for(int i=0;i<keyword_match.length;i+=1) {
+									if(keyword_match[i] > max) {
+										max = keyword_match[i];
+										max_index = i;
+									}
+								}
+
+								substitutions_vec.add(new SequenceSubstitution(voice, gm_matches.get(max_index)));
+								subbed = true;
+							}
+						}
+					}
+				}
+			}
+
+			if(subbed)
+				continue;
+			
+			//Swap percussion or GM.
+			if(is_percussion) {
+				if(Voice.matchVoice(instrument_voices, voice.voice, target_percussion_lsb, target_percussion_msb) != null) {
+					final Voice percussion_voice = new Voice("", voice.voice, target_percussion_lsb, target_percussion_msb);
+					substitutions_vec.add(new SequenceSubstitution(voice, percussion_voice));
+				} else {
+					final Voice percussion_voice = new Voice("", (byte)0, target_percussion_lsb, target_percussion_msb);
+					substitutions_vec.add(new SequenceSubstitution(voice, percussion_voice));
+				}
+			} else {
+				final Voice gm_voice = new Voice("", voice.voice, (byte)0, (byte)0);
+				substitutions_vec.add(new SequenceSubstitution(voice, gm_voice));
+			}
+
+		}
+
+		SequenceSubstitution[] substitutions = new SequenceSubstitution[substitutions_vec.size()];
+		substitutions_vec.toArray(substitutions);
+		return substitutions;
+	}
+
+	/** Return whether the instrument and profile are the same. */
+	private static boolean isSameInstrumentProfile(String target_profile, String target_instrument, String sequence_profile, String sequence_instrument) {
+		if(!target_profile.equalsIgnoreCase(sequence_profile))
+			return false;
+
+		String[] target_instruments = target_instrument.toUpperCase().split(",");
+		for(String test_instrument: target_instruments) {
+			if(sequence_instrument.toUpperCase().contains(test_instrument.trim()))
+				return true;
+		}
+
+		String[] sequence_instruments = sequence_instrument.toUpperCase().split(",");
+		for(String test_instrument: sequence_instruments) {
+			if(target_instrument.toUpperCase().contains(test_instrument.trim()))
+				return true;
+		}
+
+		return false;
+	}
+
 	/** Get bytes from a MIDI sequence. */
 	protected static void getMidiBytes(Sequence midi_sequence, ArrayList<byte[]> midi_data, ArrayList<Long> timestamps) {
 		if(midi_sequence == null)
@@ -168,7 +470,11 @@ public class MIDIManager {
 	protected Sequence getSongMIDISequence(FWSSong song, MIDIExportOptions export_options) throws InvalidMidiDataException {
 		ArrayList<byte[]> events = new ArrayList<>(0);
 		ArrayList<Long> ticks = new ArrayList<>(0);
-		calculateSongMidiEvents(song, export_options, events, ticks);
+
+		MIDIStartOptions start_options = new MIDIStartOptions();
+		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+
+		calculateSongMidiEvents(song, export_options, start_options, events, ticks);
 
 		if(events.size() != ticks.size())
 			return null;

@@ -49,6 +49,7 @@ import sprites.SpriteTempoEvent;
 import sprites.SpriteTextEvent;
 import sprites.SpriteTimeEvent;
 import sprites.SpriteVoiceEvent;
+import style.Style;
 import voices.Voice;
 
 public class SongViewPort extends JScrollPane {
@@ -270,9 +271,7 @@ public class SongViewPort extends JScrollPane {
 			FWSVoiceEvent voice_event = sequence.getVoiceAt(tick, (byte)channel_selected);
 			Voice note_voice = new Voice("", (byte)0);
 			if(voice_event != null) {
-				note_voice.voice = voice_event.voice;
-				note_voice.lsb = voice_event.voice_lsb;
-				note_voice.msb = voice_event.voice_msb;
+				note_voice = new Voice("", voice_event.voice, voice_event.voice_lsb, voice_event.voice_msb);
 			}
 
 			MIDIManager manager = controller.getMidiManager();
@@ -479,9 +478,12 @@ public class SongViewPort extends JScrollPane {
 		for(int i=0;i<common_components.length;i+=1) {
 			if(common_components[i] == sprite) {
 				style_header.remove(sprite);
-				return;
+				break;
 			}
 		}
+
+		if(sprite instanceof SpriteTempoEvent || sprite instanceof SpriteTimeEvent || sprite instanceof SpriteSectionNameEvent)
+			refreshFull();
 	}
 
 	/** Refresh the sprite associated with the event. */
@@ -516,6 +518,12 @@ public class SongViewPort extends JScrollPane {
 			sprites[i].repaint();
 		}
 
+		if(main_window.getDisplayMode() == DisplayMode.DISPLAY_MODE_STYLE) {
+			Style ref_style = new Style();
+			ref_style.getFromSequence(active_sequence);
+			main_window.refreshStyleDropdown(ref_style);
+		}
+
 		refresh();
 	}
 
@@ -546,8 +554,8 @@ public class SongViewPort extends JScrollPane {
 		Sprite[] sprites = getSprites();
 		for(int i=0;i<sprites.length;i+=1) {
 			if(sprites[i].getSelected() && !sprites[i].getLocked()) {
-				removeSprite(sprites[i]);
 				active_sequence.removeEvent(sprites[i].getEvent());
+				removeSprite(sprites[i]);
 			}
 		}
 	}

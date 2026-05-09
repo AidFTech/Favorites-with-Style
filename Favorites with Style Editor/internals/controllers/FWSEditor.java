@@ -18,6 +18,7 @@ import main_window.FWSEditorMainWindow.DisplayMode;
 import options.MIDIExportOptions;
 import options.RecordLoadOptions;
 import song.FWSSong;
+import style.Casm;
 import style.Style;
 import tools.MIDIExportWindow;
 import tools.RecordLoadWindow;
@@ -27,6 +28,8 @@ public class FWSEditor extends FWS {
 
 	private FWSSequence active_sequence, scratch_sequence = new FWSSequence();
 	private Style active_style = null;
+
+	private Casm active_casm = null;
 
 	private Color[] channel_colors;
 
@@ -130,11 +133,13 @@ public class FWSEditor extends FWS {
 		if(style != null) {
 			this.active_sequence = style.getFullSequence();
 			this.active_style = style;
+			this.active_casm = new Casm(style.getCasm());
 			main_window.setDisplayMode(DisplayMode.DISPLAY_MODE_STYLE);
 			main_window.refreshStyleDropdown(style);
 			main_window.getViewPort().fill(this.active_sequence, true);
 		} else {
 			this.active_style = null;
+			this.active_casm = null;
 			this.active_sequence = loaded_song.getSongSequence();
 			main_window.setDisplayMode(DisplayMode.DISPLAY_MODE_SONG);
 			main_window.getViewPort().fill(this.active_sequence, true);
@@ -164,6 +169,13 @@ public class FWSEditor extends FWS {
 	public void saveActiveStyle() {
 		if(active_sequence != null)
 			this.active_style.getFromSequence(active_sequence);
+		if(active_casm != null)
+			this.active_style.setCasm(active_casm);
+	}
+
+	/** Get the active CASM data. */
+	public Casm getActiveCASM() {
+		return this.active_casm;
 	}
 
 	/** Get the assigned channel colors. */

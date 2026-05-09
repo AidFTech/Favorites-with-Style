@@ -16,6 +16,7 @@ import fwsevents.FWSSequence;
 import infobox.InfoBox;
 import main_window.NoteToggleButton.NoteToggle;
 import options.MIDIPlayerOptions;
+import settings_dialogs.CasmEditor;
 import settings_dialogs.FirstVoicesWindow;
 import settings_dialogs.SequencePropertiesWindow;
 import settings_dialogs.SongPropertiesWindow;
@@ -266,6 +267,20 @@ public class FWSEditorMainWindow extends JFrame {
 		menu_style.add(menu_item_style_manager);
 		song_mode_locked.add(menu_item_style_manager);
 		midi_mode_locked.add(menu_item_style_manager);
+
+		JMenuItem menu_item_casm_editor = new JMenuItem("CASM Editor");
+		menu_item_casm_editor.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				Style ref_style = new Style();
+				ref_style.getFromSequence(song_viewport.getActiveSequence());
+				ref_style.setCasm(controller.getActiveCASM());
+
+				new CasmEditor(controller, self, ref_style);
+			}
+		});
+		menu_style.add(menu_item_casm_editor);
+		style_mode_locked.add(menu_item_casm_editor);
+		menu_item_casm_editor.setEnabled(false);
 
 		JMenu menu_midi = new JMenu("MIDI");
 		main_menu_bar.add(menu_midi);
@@ -780,7 +795,8 @@ public class FWSEditorMainWindow extends JFrame {
 					Style style = new Style();
 					style.getFromSequence(song_viewport.getActiveSequence());
 					style.long_name = controller.getActiveStyle().long_name;
-					style.setCasm(controller.getActiveStyle().getCasm());
+					style.short_name = controller.getActiveStyle().short_name;
+					style.setCasm(controller.getActiveCASM());
 
 					controller.getMidiManager().playStyle(style);
 				}

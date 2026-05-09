@@ -5,6 +5,8 @@ import javax.swing.JDialog;
 import main_window.FWSEditorMainWindow;
 import options.MIDIPlayerOptions;
 import song.FWSSongMetadata;
+import voices.InstrumentProfile;
+
 import javax.swing.JLabel;
 import javax.swing.SwingConstants;
 
@@ -31,7 +33,7 @@ public class SongPropertiesWindow extends JDialog {
 		this.setTitle("Song Properties");
 		this.setType(Type.UTILITY);
 		this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-		this.getContentPane().setPreferredSize(new Dimension(500, 400));
+		this.getContentPane().setPreferredSize(new Dimension(500, 510));
 		this.getContentPane().setSize(getContentPane().getPreferredSize());
 		this.pack();
 		this.setResizable(false);
@@ -130,9 +132,65 @@ public class SongPropertiesWindow extends JDialog {
 		dropdown_lh_melody_channel.setSelectedIndex(song_metadata.melody_lh_channel >= -1 ? song_metadata.melody_lh_channel + 1 : -1);
 
 		SongPropertiesWindow self = this;
+		
+		JLabel label_target_instrument = new JLabel("Target Instrument");
+		label_target_instrument.setBounds(37, 294, 143, 35);
+		getContentPane().add(label_target_instrument);
+		
+		JLabel label_family = new JLabel("Family");
+		label_family.setHorizontalAlignment(SwingConstants.RIGHT);
+		label_family.setBounds(25, 341, 87, 35);
+		getContentPane().add(label_family);
+		
+		JComboBox<String> dropdown_target_profile = new JComboBox<>();
+		dropdown_target_profile.setBounds(130, 341, 229, 35);
+		dropdown_target_profile.setToolTipText("Select the target instrument family for the song. This does not need to be the same as that of the connected instrument.");
+		getContentPane().add(dropdown_target_profile);
+
+		dropdown_target_profile.addItem("Undefined/General MIDI");
+
+		String[] profiles = parent.getController().getInstrumentProfileList();
+		for(String profile: profiles) {
+			dropdown_target_profile.addItem(profile);
+		}
+		dropdown_target_profile.setSelectedItem(song_metadata.target_instrument_profile);
+		
+		JLabel label_instrument = new JLabel("Instrument");
+		label_instrument.setHorizontalAlignment(SwingConstants.RIGHT);
+		label_instrument.setBounds(25, 388, 87, 35);
+		getContentPane().add(label_instrument);
+		
+		JComboBox<String> dropdown_target_instrument = new JComboBox<>();
+		dropdown_target_instrument.setBounds(130, 388, 229, 35);
+		dropdown_target_instrument.setToolTipText("Set the target instrument for the song. This does not need to be the same as the connected instrument.");
+		getContentPane().add(dropdown_target_instrument);
+
+		refreshInstrumentMenu(dropdown_target_instrument, parent.getController().getInstrumentProfile(song_metadata.target_instrument_profile));
+
+		dropdown_target_instrument.setSelectedItem(song_metadata.target_instrument);
+
+		dropdown_target_profile.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if(dropdown_target_profile.getSelectedIndex() <= 0)
+					refreshInstrumentMenu(dropdown_target_instrument, null);
+				else
+					refreshInstrumentMenu(dropdown_target_instrument, parent.getController().getInstrumentProfile((String)dropdown_target_profile.getSelectedItem()));
+			}
+		});
+		
+		JLabel label_accompaniment_volume = new JLabel("<html>Accompaniment Volume</html>");
+		label_accompaniment_volume.setHorizontalAlignment(SwingConstants.RIGHT);
+		label_accompaniment_volume.setBounds(290, 294, 100, 35);
+		getContentPane().add(label_accompaniment_volume);
+		
+		JSpinner spinner_accompaniment_volume = new JSpinner();
+		spinner_accompaniment_volume.setToolTipText("Set the accompaniment volume for recorded styles.");
+		spinner_accompaniment_volume.setModel(new SpinnerNumberModel(song_metadata.record_accompaniment_vol, 0, 127, 1));
+		spinner_accompaniment_volume.setBounds(408, 294, 66, 35);
+		getContentPane().add(spinner_accompaniment_volume);
 
 		JButton button_cancel = new JButton("Cancel");
-		button_cancel.setBounds(254, 316, 105, 35);
+		button_cancel.setBounds(266, 463, 105, 35);
 		button_cancel.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -142,7 +200,7 @@ public class SongPropertiesWindow extends JDialog {
 		getContentPane().add(button_cancel);
 
 		JButton button_apply = new JButton("Apply");
-		button_apply.setBounds(369, 316, 105, 35);
+		button_apply.setBounds(383, 463, 105, 35);
 		button_apply.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -157,11 +215,23 @@ public class SongPropertiesWindow extends JDialog {
 				song_metadata.melody_rh_channel = (byte)(rh_index - 1);
 				song_metadata.melody_lh_channel = (byte)(lh_index - 1);
 
+				song_metadata.record_accompaniment_vol = ((Integer)spinner_accompaniment_volume.getValue()).shortValue();
+
 				MIDIManager mcontroller =  parent.getController().getMidiManager();
 				MIDIPlayerOptions moptions = mcontroller.getPlayerOptions();
 				
 				moptions.song_melody_rh = song_metadata.melody_rh_channel;
 				moptions.song_melody_lh = song_metadata.melody_lh_channel;
+
+				if(dropdown_target_profile.getSelectedIndex() <= 0)
+					song_metadata.target_instrument_profile = "";
+				else
+					song_metadata.target_instrument_profile = (String)dropdown_target_profile.getSelectedItem();
+
+				if(dropdown_target_instrument.getSelectedIndex() <= 0)
+					song_metadata.target_instrument = "";
+				else
+					song_metadata.target_instrument = (String)dropdown_target_instrument.getSelectedItem();
 
 				dispatchEvent(new WindowEvent(self, WindowEvent.WINDOW_CLOSING));
 			}
@@ -169,5 +239,19 @@ public class SongPropertiesWindow extends JDialog {
 		getContentPane().add(button_apply);
 
 		this.setVisible(true);
+	}
+
+	/** Refresh the isntrument menu. */
+	private void refreshInstrumentMenu(JComboBox<String> instrument_dropdown, InstrumentProfile target_profile) {
+		instrument_dropdown.removeAllItems();
+
+		instrument_dropdown.addItem("");
+		if(target_profile == null)
+			return;
+
+		String[] instruments = target_profile.getInstrumentNames();
+		for(String instrument: instruments) {
+			instrument_dropdown.addItem(instrument);
+		}
 	}
 }
