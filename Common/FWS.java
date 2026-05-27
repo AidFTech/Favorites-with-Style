@@ -8,7 +8,10 @@ import java.util.Map.Entry;
 
 import javax.swing.JFrame;
 
+import org.python.util.PythonInterpreter;
+
 import options.GlobalOptions;
+import options.MIDIPlayerOptions;
 import song.FWSSong;
 import voices.InstrumentProfile;
 import voices.Voice;
@@ -26,8 +29,8 @@ public abstract class FWS {
 	protected GlobalOptions global_options = new GlobalOptions();
 
 	protected Map<String, InstrumentProfile> instrument_profiles = new LinkedHashMap<>();
-	protected InstrumentProfile active_profile = null;
-	protected String active_instrument = "";
+	protected InstrumentProfile active_profile = null, output_profile = null;
+	protected String active_instrument = "", output_instrument = "";
 
 	private Voice[] active_voice_list;
 
@@ -36,12 +39,26 @@ public abstract class FWS {
 		active_voice_list = Voice.getGMVoices();
 		midi_manager = new MIDIManager(this);
 
-		loaded_song = new FWSSong();
+		//Make sure the Python interpreter works.
+		PythonInterpreter interpreter = new PythonInterpreter();
+		interpreter.close();
+		
 		save_load_controller.initFWS();
 
+		newSong();
+	}
+
+	/** Clear the song data. */
+	public void newSong() {
+		loaded_song = new FWSSong();
 		loaded_song.getSongMetadata().target_instrument = active_instrument;
-		if(active_profile != null)
+		if(active_profile != null) {
 			loaded_song.getSongMetadata().target_instrument_profile = active_profile.getInstrumentFamily();
+			loaded_song.getSongMetadata().record_accompaniment_vol = active_profile.getAccompanimentVolume();
+		}
+		
+		loadSong(loaded_song);
+		setLoadedSongFile(null);
 	}
 
 	/** Load a song. */
@@ -69,6 +86,24 @@ public abstract class FWS {
 		return this.active_instrument;
 	}
 
+	/** Get the output instrument profile. */
+	public InstrumentProfile getOutputProfile() {
+		return this.output_profile;
+	}
+
+	/** Get the output instrument profile name. */
+	public String getOutputProfileName() {
+		if(this.output_profile != null)
+			return this.output_profile.getInstrumentFamily();
+		else
+			return "";
+	}
+
+	/** Get the output instrument name. */
+	public String getOutputInstrumentName() {
+		return this.output_instrument;
+	}
+
 	/** Get the instrument profile. */
 	public InstrumentProfile getInstrumentProfile(String family) {
 		return this.instrument_profiles.get(family);
@@ -89,13 +124,50 @@ public abstract class FWS {
 	/** Set the instrument family. */
 	public void setInstrumentFamily(final String family) {
 		active_profile = this.instrument_profiles.get(family);
+		MIDIPlayerOptions player_options = midi_manager.getPlayerOptions();
+		if(output_profile != null) {
+			player_options.export_melody_lh = output_profile.getFileMelodyLH();
+			player_options.export_melody_rh = output_profile.getFileMelodyRH();
+			player_options.instrument_melody_lh = output_profile.getStreamMelodyLH();
+			player_options.instrument_melody_rh = output_profile.getStreamMelodyRH();
+		} else if(active_profile != null && output_profile == null) {
+			player_options.export_melody_lh = active_profile.getFileMelodyLH();
+			player_options.export_melody_rh = active_profile.getFileMelodyRH();
+			player_options.instrument_melody_lh = active_profile.getStreamMelodyLH();
+			player_options.instrument_melody_rh = active_profile.getStreamMelodyRH();
+		}
+		
 		active_voice_list = Voice.getGMVoices();
 		active_instrument = "";
 	}
 
+	/** Set the output family. */
+	public void setOutputFamily(final String family) {
+		output_profile = this.instrument_profiles.get(family);
+		MIDIPlayerOptions player_options = midi_manager.getPlayerOptions();
+		if(output_profile != null) {
+			player_options.export_melody_lh = output_profile.getFileMelodyLH();
+			player_options.export_melody_rh = output_profile.getFileMelodyRH();
+			player_options.instrument_melody_lh = output_profile.getStreamMelodyLH();
+			player_options.instrument_melody_rh = output_profile.getStreamMelodyRH();
+		} else if(active_profile != null && output_profile == null) {
+			player_options.export_melody_lh = active_profile.getFileMelodyLH();
+			player_options.export_melody_rh = active_profile.getFileMelodyRH();
+			player_options.instrument_melody_lh = active_profile.getStreamMelodyLH();
+			player_options.instrument_melody_rh = active_profile.getStreamMelodyRH();
+		}
+
+		output_instrument = "";
+	}
+
+	/** Set the output instrument. */
+	public void setOutputInstrument(final String instrument) {
+		this.output_instrument = instrument;
+	}
+
 	/** Set a new voice list from a specific instrument. If the string is blank, set to GM voices. */
 	public void setVoiceList(final String instrument) {
-		if(!instrument.isBlank()) {
+		if(instrument != null && !instrument.isEmpty()) {
 			if(active_profile == null) {
 				active_voice_list = Voice.getGMVoices();
 				return;

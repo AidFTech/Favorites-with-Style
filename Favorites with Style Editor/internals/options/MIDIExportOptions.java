@@ -9,4 +9,6 @@ public class MIDIExportOptions {
 	public boolean truncate = true; //Truncate melody notes.
 
 	public byte[] black_chord_display = {MIDIPlayerOptions.CHORD_AS_IS, MIDIPlayerOptions.CHORD_AS_IS, MIDIPlayerOptions.CHORD_AS_IS, MIDIPlayerOptions.CHORD_AS_IS, MIDIPlayerOptions.CHORD_AS_IS};
+
+	public String profile = "", instrument = "";
 }

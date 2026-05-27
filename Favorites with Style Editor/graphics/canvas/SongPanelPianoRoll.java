@@ -44,6 +44,8 @@ public class SongPanelPianoRoll extends JLayeredPane {
 		this.controller = controller;
 		this.vp_parent = parent;
 
+		SongPanelPianoRoll self = this;
+
 		this.setBackground(Color.WHITE);
 		this.setLayout(null);
 
@@ -60,11 +62,11 @@ public class SongPanelPianoRoll extends JLayeredPane {
 		this.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent arg0) {
-				Sprite[] sprites = vp_parent.getSprites();
-				for(int i=0;i<sprites.length;i+=1)
-					sprites[i].deselect();
-
 				if(arg0.getButton() == MouseEvent.BUTTON1) {
+					Sprite[] sprites = vp_parent.getSprites();
+					for(int i=0;i<sprites.length;i+=1)
+						sprites[i].deselect();
+
 					final NoteToggle placement_length = vp_parent.getPlacementLength();
 					if(placement_length == null || placement_length == NoteToggle.NOTE_TOGGLE_DRAG)
 						return;
@@ -142,6 +144,8 @@ public class SongPanelPianoRoll extends JLayeredPane {
 							break;
 						}
 					}
+				} else if(arg0.getButton() == MouseEvent.BUTTON3) {
+					parent.showPopup(self, arg0);
 				}
 			}
 
@@ -282,6 +286,7 @@ public class SongPanelPianoRoll extends JLayeredPane {
 		FWSSequence active_sequence = vp_parent.getActiveSequence();
 		if(active_sequence != null) {
 			final int ppq = controller.getGlobalOptions().ppq;
+			mt = active_sequence.getXTime(x, ppq)/vp_parent.getSnap()*vp_parent.getSnap();
 			mx = active_sequence.getXPosition(active_sequence.getXTime(x, ppq)/vp_parent.getSnap()*vp_parent.getSnap(), ppq);
 		}
 		rx = x;

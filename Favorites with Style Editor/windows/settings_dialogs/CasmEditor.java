@@ -485,6 +485,29 @@ public class CasmEditor extends JDialog {
 	
 	/** Refresh the part list. */
 	private void refreshList(JList<String> list, int cseg) {
+		//Sort the parts.
+		{
+			ArrayList<CasmPart> parts = new ArrayList<>(0);
+			for(int i=0;i<affected_casm.parts.size();i+=1) {
+				CasmPart part = affected_casm.parts.get(i);
+				int part_index = -1;
+
+				for(int j=0;j<parts.size();j+=1) {
+					if(parts.get(j).source_channel > part.source_channel) {
+						part_index = j;
+						break;
+					}
+				}
+
+				if(part_index >= 0)
+					parts.add(part_index, part);
+				else
+					parts.add(part);
+			}
+
+			affected_casm.parts = parts;
+		}
+
 		DefaultListModel<String> model = new DefaultListModel<String>();
 		
 		this.cseg_indices = new ArrayList<Integer>(0);

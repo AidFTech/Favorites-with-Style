@@ -1,5 +1,6 @@
 package options;
 
+import fwsevents.FWSNoteEvent;
 import infobox.InfoBox;
 
 public class MIDIPlayerOptions {
@@ -8,6 +9,9 @@ public class MIDIPlayerOptions {
 	public boolean play = false; //True if the sequence is playing.
 
 	public byte song_melody_rh = 0, song_melody_lh = 1, instrument_melody_rh = 0, instrument_melody_lh = 0, export_melody_lh = 1, export_melody_rh = 0;
+	public byte split_point = FWSNoteEvent.yamaha_split;
+
+	public boolean chord_part = true;
 
 	public InfoBox info_display = null;
 

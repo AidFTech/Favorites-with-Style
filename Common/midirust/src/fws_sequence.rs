@@ -201,6 +201,47 @@ impl<'local> JFwsSequence<'local> {
 			}
 		}
 
+		let sysex_len = start_options.sysex_messages(env).unwrap().len(env).unwrap();
+		let j_ticks = start_options.sysex_ticks(env).unwrap();
+
+		let mut ticks = vec![0; j_ticks.len(env).unwrap()];
+		let _ = j_ticks.get_region(env, 0, &mut ticks);
+
+		for e in 0..sysex_len {
+			let j_message = start_options.sysex_messages(env).unwrap().get_element(env, e).unwrap();
+			let mut i_message = vec![0;j_message.len(env).unwrap()];
+			let _ = j_message.get_region(env, 0, &mut i_message);
+
+			let mut message = Vec::new();
+			for i in i_message {
+				message.push(i as u8);
+			}
+			
+			let tick = ticks[e] as u64;
+
+			let mut tick_index = -1;
+
+			for i in 0..event_list.len() {
+				let ev = &event_list[i];
+				if ev.tick >= tick {
+					tick_index = i as isize;
+					break;
+				}
+			}
+
+			if tick_index >= 0 {
+				event_list.insert(tick_index as usize, GenericMIDIEvent {
+					data: message.clone(),
+					tick,
+				});
+			} else {
+				event_list.push(GenericMIDIEvent {
+					data: message.clone(),
+					tick,
+				});
+			}
+		}
+
 		return (time_event_list, event_list, key_event_list, chord_event_list, style_event_list);
 	}
 }

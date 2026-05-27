@@ -7,18 +7,27 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Enumeration;
 
 import javax.sound.midi.ShortMessage;
 import javax.swing.AbstractButton;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
+import javax.swing.KeyStroke;
+import javax.swing.Timer;
 
 import controllers.FWS;
 import controllers.FWSEditor;
 import controllers.MIDIManager;
+import event_dialogs.MultiEventDialog;
+import event_dialogs.MultiNoteEventDialog;
+import event_dialogs.MultiShortEventDialog;
 import fwsevents.FWSChordEvent;
 import fwsevents.FWSEvent;
 import fwsevents.FWSKeySignatureEvent;
@@ -36,6 +45,7 @@ import infobox.InfoBox;
 import main_window.FWSEditorMainWindow;
 import main_window.NoteToggleButton;
 import main_window.FWSEditorMainWindow.DisplayMode;
+import options.MIDIPlayerOptions;
 import sprites.Sprite;
 import sprites.SpriteChordEvent;
 import sprites.SpriteKeyEvent;
@@ -68,6 +78,9 @@ public class SongViewPort extends JScrollPane {
 	private SongPanelPianoHeader piano_header;
 	private SongPanelPianoRoll piano_roll;
 
+	private JPopupMenu popup_menu;
+	private Component last_popup; //The last component to trigger the popup menu.
+
 	private CanvasOptionGroup canvas_options;
 
 	public SongViewPort(FWSEditor controller, FWSEditorMainWindow main_window, int x, int y, Dimension d) {
@@ -85,6 +98,26 @@ public class SongViewPort extends JScrollPane {
 		this.active_sequence = controller.getActiveSequence();
 		if(this.active_sequence != null)
 			this.snap = active_sequence.getTPQ();
+
+		Timer refresh_timer = new Timer(40, new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				MIDIPlayerOptions player_options = controller.getMidiManager().getPlayerOptions();
+				
+				sprites_locked = player_options.play;
+				
+				if(player_options.play && main_window.getDisplayMode() != DisplayMode.DISPLAY_MODE_STYLE) {
+					final long tick = player_options.current_tick, length = controller.getActiveSequence().getSequenceLength();
+					JScrollBar scrh = getHorizontalScrollBar();
+
+					final int maximum = scrh.getMaximum(), minimum = scrh.getMinimum(), range = maximum-minimum;
+					final double ratio = (double)tick/length;
+
+					scrh.setValue(minimum + (int)(range*ratio) - getWidth()/2);
+				}
+			}
+		});
+		refresh_timer.start();
 	}
 
 	/** Initialize the viewport. */
@@ -104,6 +137,111 @@ public class SongViewPort extends JScrollPane {
 		JViewport main_vp = new JViewport();
 		main_vp.setView(piano_roll);
 		this.setViewport(main_vp);
+
+		//Popup menu:
+		popup_menu = new JPopupMenu();
+
+		JMenuItem menu_item_cut = new JMenuItem("Cut");
+		menu_item_cut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.CTRL_DOWN_MASK));
+		popup_menu.add(menu_item_cut);
+
+		JMenuItem menu_item_copy = new JMenuItem("Copy");
+		menu_item_copy.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK));
+		popup_menu.add(menu_item_copy);
+
+		JMenuItem menu_item_paste = new JMenuItem("Paste");
+		menu_item_paste.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_DOWN_MASK));
+		popup_menu.add(menu_item_paste);
+
+		popup_menu.addSeparator();
+
+		JMenuItem menu_item_delete = new JMenuItem("Delete");
+		popup_menu.add(menu_item_delete);
+
+		popup_menu.addSeparator();
+
+		JMenuItem menu_item_properties = new JMenuItem("Properties");
+		menu_item_properties.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Sprite[] sprites = getSprites();
+				ArrayList<Sprite> selected = new ArrayList<>();
+				
+				for(int i=0;i<sprites.length;i+=1) {
+					if(sprites[i].getSelected())
+						selected.add(sprites[i]);
+				}
+
+				if(selected.size() <= 0) {
+					if(last_popup instanceof Sprite)
+						selected.add((Sprite)last_popup);
+				}
+
+				if(selected.size() == 1) {
+					Sprite sprite = selected.get(0);
+					sprite.createDialog();
+				} else if(selected.size() > 1) {
+					Class<?> selection_class = selected.get(0).getClass();
+					boolean generic = false, channeled = true;;
+
+					for(int i=0;i<selected.size();i+=1) {
+						if(selected.get(i).getClass() != selection_class) {
+							generic = true;
+							break;
+						}
+					}
+
+					for(int i=0;i<selected.size();i+=1) {
+						if(!(selected.get(i) instanceof SpriteNoteEvent) && !(selected.get(i) instanceof SpriteShortEvent) && !(selected.get(i) instanceof SpriteVoiceEvent)) {
+							channeled = false;
+							break;
+						}
+					}
+
+					if(!generic) {
+						if(selection_class == SpriteNoteEvent.class) {
+							FWSNoteEvent[] notes = new FWSNoteEvent[selected.size()];
+							for(int i=0;i<notes.length;i+=1) {
+								FWSNoteEvent note = (FWSNoteEvent)selected.get(i).getEvent();
+								notes[i] = note;
+							}
+							new MultiNoteEventDialog(main_window, notes);
+						} else if(selection_class == SpriteShortEvent.class) {
+							FWSEvent[] shorts = new FWSEvent[selected.size()];
+							for(int i=0;i<shorts.length;i+=1)
+								shorts[i] = selected.get(i).getEvent();
+
+							new MultiShortEventDialog(main_window, shorts);
+						} else if(selection_class == SpriteVoiceEvent.class) {
+							FWSEvent[] shorts = new FWSEvent[selected.size()];
+							for(int i=0;i<shorts.length;i+=1)
+								shorts[i] = selected.get(i).getEvent();
+
+							new MultiShortEventDialog(main_window, shorts);
+						} else {
+							FWSEvent[] events = new FWSEvent[selected.size()];
+							for(int i=0;i<events.length;i+=1)
+								events[i] = selected.get(i).getEvent();
+
+							new MultiEventDialog(main_window, events);
+						}
+					} else if(channeled) {
+						FWSEvent[] shorts = new FWSEvent[selected.size()];
+						for(int i=0;i<shorts.length;i+=1)
+							shorts[i] = selected.get(i).getEvent();
+
+						new MultiShortEventDialog(main_window, shorts);
+					} else {
+						FWSEvent[] events = new FWSEvent[selected.size()];
+						for(int i=0;i<events.length;i+=1)
+							events[i] = selected.get(i).getEvent();
+
+						new MultiEventDialog(main_window, events);
+					}
+				}
+			}
+		});
+		popup_menu.add(menu_item_properties);
 	}
 
 	/** Set the information display. */
@@ -272,6 +410,7 @@ public class SongViewPort extends JScrollPane {
 			Voice note_voice = new Voice("", (byte)0);
 			if(voice_event != null) {
 				note_voice = new Voice("", voice_event.voice, voice_event.voice_lsb, voice_event.voice_msb);
+				note_voice = controller.getMidiManager().getSubstitutionVoice(note_voice);
 			}
 
 			MIDIManager manager = controller.getMidiManager();
@@ -575,6 +714,18 @@ public class SongViewPort extends JScrollPane {
 		return this.main_window;
 	}
 
+	/** Set the horizontal scrollbar to the tick position. */
+	public void setHScroll() {
+		MIDIPlayerOptions player_options = controller.getMidiManager().getPlayerOptions();
+		final long tick = player_options.start_tick, length = controller.getActiveSequence().getSequenceLength();
+		JScrollBar scrh = getHorizontalScrollBar();
+
+		final int maximum = scrh.getMaximum(), minimum = scrh.getMinimum(), range = maximum-minimum;
+		final double ratio = (double)tick/length;
+
+		scrh.setValue(minimum + (int)(range*ratio) - getWidth()/2);
+	}
+
 	/** Reset the scrollbars. */
 	public void resetScrollBars() {
 		JScrollBar scrh = this.getHorizontalScrollBar(), scrv = this.getVerticalScrollBar();
@@ -585,5 +736,15 @@ public class SongViewPort extends JScrollPane {
 		
 		scrh.setValue(scrh.getMinimum());
 		scrv.setValue((int) ((scrv.getMaximum() - scrv.getMinimum())*height_ratio));
+	}
+
+	/** Show the right-click popup. */
+	public void showPopup(Component caller, MouseEvent e) {
+		if(this.sprites_locked)
+			return;
+
+		last_popup = caller;
+
+		popup_menu.show(caller, e.getX(), e.getY());
 	}
 }

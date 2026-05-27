@@ -13,4 +13,9 @@ public class FWSChordEvent extends FWSEvent {
 	public FWSChordEvent(FWSChordEvent c) {
 		super(c);
 	}
+
+	@Override
+	public String toString() {
+		return "Chord: " + main_chord.getName() + (!bass_chord.getNoChord() ? ("/" + bass_chord.getName()) : "");
+	}
 }

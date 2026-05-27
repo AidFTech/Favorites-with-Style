@@ -10,7 +10,10 @@ import javax.swing.JDialog;
 
 import canvas.SongViewPort;
 import fwsevents.FWSEvent;
+import fwsevents.FWSKeySignatureEvent;
 import fwsevents.FWSSequence;
+import fwsevents.FWSTempoEvent;
+import fwsevents.FWSTimeSignatureEvent;
 import main_window.FWSEditorMainWindow;
 
 public class MultiEventDialog extends JDialog {
@@ -24,10 +27,13 @@ public class MultiEventDialog extends JDialog {
 		if(events.length <= 0)
 			return;
 
-		final long tick = events[0].tick;
+		long tick = events[0].tick;
+		final long set_tick = tick;
 		for(int i=0;i<events.length;i+=1) {
-			if(events[i].tick != tick)
-				return;
+			if(events[i].tick != tick) {
+				tick = -1;
+				break;
+			}
 		}
 
 		this.setTitle("Event Properties");
@@ -40,7 +46,7 @@ public class MultiEventDialog extends JDialog {
 		this.setLocationRelativeTo(parent);
 		getContentPane().setLayout(null);
 
-		SequenceTickPanel tick_panel = new SequenceTickPanel(parent, tick, 12, 12, 326, 100);
+		MultiTickPanel tick_panel = new MultiTickPanel(parent, set_tick, 12, 12, 326, 100, tick<0);
 		tick_panel.setBounds(12, 12, 326, 100);
 		getContentPane().add(tick_panel);
 
@@ -62,17 +68,36 @@ public class MultiEventDialog extends JDialog {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				refresh = true;
-				final long new_tick = tick_panel.getSetTick();
 
 				SongViewPort vp = parent.getViewPort();
 				FWSSequence sequence = vp.getActiveSequence();
 
 				for(int i=0;i<events.length;i+=1) {
-					events[i].tick = new_tick;
-					if(sequence.getEvent(events[i]))
+					long new_tick = events[i].tick;
+
+					if(new_tick == 0 && (events[i] instanceof FWSTimeSignatureEvent || events[i] instanceof FWSKeySignatureEvent || events[i] instanceof FWSTempoEvent))
+						continue;
+
+					if(tick_panel.relative) {
+						new_tick = events[i].tick + tick_panel.getSetTick();
+						if(new_tick < 0)
+							new_tick = 0;
+						if(new_tick >= sequence.getSequenceLength())
+							new_tick = sequence.getSequenceLength() - 1;
+					} else
+						new_tick = tick_panel.getSetTick();
+
+					if(events[i] instanceof FWSTimeSignatureEvent) {
+						FWSTimeSignatureEvent original = new FWSTimeSignatureEvent((FWSTimeSignatureEvent)events[i]);
+						final int new_measure = sequence.getMeasureAt(new_tick);
+
+						long[] measures = sequence.getMeasureTicks();
+						events[i].tick = measures[new_measure];
+						sequence.refreshTimeSignatures((FWSTimeSignatureEvent)events[i], original, false);
+					} else {
+						events[i].tick = new_tick;
 						sequence.refreshEvent(events[i]);
-					else
-						sequence.addEvent(events[i]);
+					}
 
 					vp.refreshSprite(events[i]);
 				}

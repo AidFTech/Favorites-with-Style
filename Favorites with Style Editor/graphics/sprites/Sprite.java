@@ -43,6 +43,8 @@ public abstract class Sprite extends JPanel {
 
 		this.setVisible(true);
 
+		Sprite self = this;
+
 		this.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent arg0) {
@@ -52,11 +54,16 @@ public abstract class Sprite extends JPanel {
 							Sprite[] all_sprites = getViewport().getSprites();
 							for(int i=0;i<all_sprites.length;i+=1)
 								all_sprites[i].deselect();
+
+							if(!isselected)
+								select();
+						} else {
+							if(!isselected)
+								select();
+							else
+								deselect();
 						}
 
-						if(!isselected)
-							select();
-						
 						if(arg0.getClickCount() == 2) {
 							Sprite[] all_sprites = getViewport().getSprites();
 							for(int i=0;i<all_sprites.length;i+=1)
@@ -64,6 +71,14 @@ public abstract class Sprite extends JPanel {
 
 							select();
 							createDialog();
+						}
+					} else {
+						if(arg0.getButton() == MouseEvent.BUTTON3 && getViewport() != null)
+							getViewport().showPopup(self, arg0);
+						else {
+							MouseListener ml[] = getParent().getMouseListeners();
+							for(int i = 0;i<ml.length;i+=1)
+								ml[i].mousePressed(arg0);
 						}
 					}
 				} else {

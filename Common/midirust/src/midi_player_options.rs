@@ -29,6 +29,16 @@ bind_java_type! {
 			name = "instrument_melody_lh",
 		},
 
+		pub chord_part {
+			sig = jboolean,
+			name = "chord_part",
+		},
+
+		pub split_point {
+			sig = jbyte,
+			name = "split_point",
+		},
+
 		pub info_display {
 			sig = infobox.InfoBox,
 			name = "info_display",
@@ -77,6 +87,21 @@ bind_java_type! {
 
 	fields {
 		pub substitutions: voices.SequenceSubstitution[],
+
+		pub start_messages {
+			sig = jbyte[][],
+			name = "start_messages",
+		},
+
+		pub sysex_messages {
+			sig = jbyte[][],
+			name = "sysex_messages",
+		},
+
+		pub sysex_ticks {
+			sig = jlong[],
+			name = "sysex_ticks",
+		}
 	}
 }
 

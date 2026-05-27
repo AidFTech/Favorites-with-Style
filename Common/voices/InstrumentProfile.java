@@ -18,9 +18,11 @@ public class InstrumentProfile {
 
 	private byte stream_melody_lh = 0, stream_melody_rh = 0, file_melody_lh = 1, file_melody_rh = 0; //Melody channels.
 
+	private boolean reset = true; //True if channels should be reset prior to play.
+
 	private short accompaniment_volume = 100;
 
-	private Map<String, Map<String, ProfileSubstitution[]>> substitutions = new LinkedHashMap<>();
+	private ProfileSubstitution[] substitutions = new ProfileSubstitution[0];
 
 	/** Get a voice list. */
 	public Voice[] getVoiceList(String instrument_name) {
@@ -77,8 +79,15 @@ public class InstrumentProfile {
 	}
 
 	/** Get the known substitution list. */
-	public Map<String, Map<String, ProfileSubstitution[]>> getSubstitutionList() {
+	public ProfileSubstitution[] getSubstitutionList() {
 		return this.substitutions;
+	}
+
+	/** Set the substitution list. */
+	public void setSubstitutions(ProfileSubstitution[] substitutions) {
+		this.substitutions = new ProfileSubstitution[substitutions.length];
+		for(int i=0;i<this.substitutions.length;i+=1)
+			this.substitutions[i] = substitutions[i];
 	}
 
 	/** Get the percussion header. */
@@ -89,6 +98,16 @@ public class InstrumentProfile {
 	/** Set the percussion header. */
 	public void setPercussionHeader(final int percussion_header) {
 		this.percussion_header = percussion_header;
+	}
+
+	/** Set the reset mode. */
+	public void setReset(final boolean reset) {
+		this.reset = reset;
+	}
+
+	/** Get the reset mode. */
+	public boolean getReset() {
+		return this.reset;
 	}
 
 	/** Set the melody channel bytes. */

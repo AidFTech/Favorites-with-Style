@@ -24,7 +24,10 @@ import settings_dialogs.StyleManagerWindow;
 import style.Style;
 import tools.EventListWindow;
 import tools.MIDIDeviceWindow;
+import tools.MessageTester;
+import tools.OutputProfileWindow;
 import tools.TickShiftWindow;
+import tools.TransposeWindow;
 import voices.InstrumentProfile;
 
 import javax.swing.JMenuBar;
@@ -114,12 +117,35 @@ public class FWSEditorMainWindow extends JFrame {
 		JMenu menu_file = new JMenu("File");
 		main_menu_bar.add(menu_file);
 
+		JMenuItem menu_item_new = new JMenuItem("New");
+		menu_item_new.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/menu_new.png")));
+		menu_item_new.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK));
+		menu_item_new.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				final int answer = JOptionPane.showConfirmDialog(controller.getMainWindow(), " Save changes to the loaded song first?", "Save", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if(answer == JOptionPane.YES_OPTION)
+					controller.saveSong();
+				else if(answer == JOptionPane.CANCEL_OPTION)
+					return;
+
+				controller.newSong();
+			}
+		});
+		menu_file.add(menu_item_new);
+
 		JMenuItem menu_item_load = new JMenuItem("Open");
 		menu_item_load.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/menu_open.png")));
 		menu_item_load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK)); //TODO: Different accelerator for Mac?
 		menu_item_load.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				final int answer = JOptionPane.showConfirmDialog(controller.getMainWindow(), " Save changes to the loaded song first?", "Save", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if(answer == JOptionPane.YES_OPTION)
+					controller.saveSong();
+				else if(answer == JOptionPane.CANCEL_OPTION)
+					return;
+				
 				controller.loadSong();
 			}
 		});
@@ -177,6 +203,9 @@ public class FWSEditorMainWindow extends JFrame {
 
 		JMenuItem menu_item_initial_voices = new JMenuItem("Initial Voices");
 		menu_song.add(menu_item_initial_voices);
+
+		JMenuItem menu_item_transpose = new JMenuItem("Transpose");
+		menu_song.add(menu_item_transpose);
 
 		menu_song.addSeparator();
 
@@ -331,6 +360,38 @@ public class FWSEditorMainWindow extends JFrame {
 				populateVoiceList();
 			}
 		});
+
+		menu_midi.addSeparator();
+
+		JMenuItem menu_item_output_voice_profile = new JMenuItem("Output Voice Profile");
+		menu_item_output_voice_profile.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new OutputProfileWindow(self);
+			}
+		});
+		menu_midi.add(menu_item_output_voice_profile);
+		
+		menu_midi.addSeparator();
+
+		JMenuItem menu_item_message_tester = new JMenuItem("Message Tester");
+		menu_item_message_tester.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new MessageTester(self);
+			}
+		});
+		menu_midi.add(menu_item_message_tester);
+
+		JMenuItem menu_item_panic = new JMenuItem("MIDI Panic");
+		menu_item_panic.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, KeyEvent.CTRL_DOWN_MASK));
+		menu_item_panic.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				controller.getMidiManager().sendMIDIPanic();
+			}
+		});
+		menu_midi.add(menu_item_panic);
 		
 		//Add transport controls.
 		JButton button_stop = new JButton("");
@@ -491,7 +552,10 @@ public class FWSEditorMainWindow extends JFrame {
 		
 		this.getContentPane().add(song_viewport);
 
-		song_viewport.getPianoRoll().add(new Playhead(song_viewport, song_viewport.getPianoRoll(), controller.getMidiManager().getPlayerOptions()));
+		Playhead playhead = new Playhead(song_viewport, song_viewport.getPianoRoll(), controller.getMidiManager().getPlayerOptions());
+		song_viewport.getPianoRoll().add(playhead);
+		song_mode_visible.add(playhead);
+		midi_mode_visible.add(playhead);
 		
 		song_viewport.fill(controller.getActiveSequence(), false);
 		song_viewport.refresh();
@@ -500,6 +564,13 @@ public class FWSEditorMainWindow extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				new FirstVoicesWindow(self);
+			}
+		});
+
+		menu_item_transpose.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new TransposeWindow(self, song_viewport.getActiveSequence());
 			}
 		});
 
@@ -808,6 +879,8 @@ public class FWSEditorMainWindow extends JFrame {
 		button_stop.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				controller.getMidiManager().getPlayerOptions().play = false;
+				if(display_mode != DisplayMode.DISPLAY_MODE_STYLE)
+					song_viewport.setHScroll();
 			}
 		});
 
@@ -906,7 +979,7 @@ public class FWSEditorMainWindow extends JFrame {
 			voice_menu.add(profile_menu);
 
 			for(String instrument : instruments) {
-				if(instrument.isBlank())
+				if(instrument.trim().isEmpty())
 					continue;
 
 				final String instr_name = instrument;
@@ -1042,24 +1115,24 @@ public class FWSEditorMainWindow extends JFrame {
 
 	/** Add a popup menu. */
 	private static void addPopup(Component component, final JPopupMenu popup) {
-	component.addMouseListener(new MouseAdapter() {
-		public void mousePressed(MouseEvent e) {
-			if (e.isPopupTrigger()) {
-				this.showMenu(e);
+		component.addMouseListener(new MouseAdapter() {
+			public void mousePressed(MouseEvent e) {
+				if (e.isPopupTrigger()) {
+					this.showMenu(e);
+				}
+
 			}
 
-		}
+			public void mouseReleased(MouseEvent e) {
+				if (e.isPopupTrigger()) {
+					this.showMenu(e);
+				}
 
-		public void mouseReleased(MouseEvent e) {
-			if (e.isPopupTrigger()) {
-				this.showMenu(e);
 			}
 
-		}
-
-		private void showMenu(MouseEvent e) {
-			popup.show(e.getComponent(), e.getX(), e.getY());
-		}
-	});
-}
+			private void showMenu(MouseEvent e) {
+				popup.show(e.getComponent(), e.getX(), e.getY());
+			}
+		});
+	}
 }

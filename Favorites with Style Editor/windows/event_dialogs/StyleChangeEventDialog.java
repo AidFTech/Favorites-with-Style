@@ -164,6 +164,8 @@ public class StyleChangeEventDialog extends JDialog {
 
 				if(style_sequence != null)
 					style_tick_panel.setSequence(style_sequence);
+
+				style_tick_panel.setRetainTick(false);
 			}
 		});
 

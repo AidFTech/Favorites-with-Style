@@ -238,7 +238,7 @@ public class FirstVoicesWindow extends JDialog {
 		FirstVoicesWindow self = this;
 
 		JButton button_cancel = new JButton("Cancel");
-		button_cancel.setBounds(309, 606, 105, 35);
+		button_cancel.setBounds(336, 643, 105, 35);
 		button_cancel.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -248,7 +248,7 @@ public class FirstVoicesWindow extends JDialog {
 		getContentPane().add(button_cancel);
 
 		JButton button_apply = new JButton("Apply");
-		button_apply.setBounds(426, 606, 105, 35);
+		button_apply.setBounds(453, 643, 105, 35);
 		button_apply.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {

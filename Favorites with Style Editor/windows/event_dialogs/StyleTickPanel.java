@@ -13,17 +13,19 @@ public class StyleTickPanel extends TickPanel {
 	private static final long serialVersionUID = -7597168249236456186L;
 	private long last_tick;
 
+	private JCheckBox checkbox_current;
+
 	public StyleTickPanel(FWSEditorMainWindow parent, final long initial_tick, final int x, final int y, final int w, final int h) {
 		this(parent, parent.getSequence(), initial_tick, x, y, w, h);
 	}
 
 	public StyleTickPanel(FWSEditorMainWindow parent, FWSSequence parent_sequence, final long initial_tick, final int x, final int y, final int w, final int h) {
-		super(parent, parent_sequence, initial_tick, x, y, w, h);
+		super(parent, parent_sequence, initial_tick, x, y, w, h, false);
 		last_tick = initial_tick >= 0 ? initial_tick : 0;
 
 		label_tick.setText("<html>Style<br>Tick</html>");
 
-		JCheckBox checkbox_current = new JCheckBox("Retain Tick");
+		checkbox_current = new JCheckBox("Retain Tick");
 		checkbox_current.setBounds(130, 60, 100, 35);
 		checkbox_current.setSelected(true);
 		checkbox_current.setToolTipText("Check to retain the style tick at the current position.");
@@ -38,7 +40,7 @@ public class StyleTickPanel extends TickPanel {
 					current_tick = last_tick;
 				}
 
-				if(split_spinners)
+				if(checkbox_split.isSelected())
 					createSplitSpinners();
 				else
 					createSingleSpinner();
@@ -59,6 +61,25 @@ public class StyleTickPanel extends TickPanel {
 			this.current_tick = this.current_tick%length;
 
 		super.setSequence(sequence);
+	}
+
+	/** Set the retain setting. */
+	public void setRetainTick(final boolean retain_tick) {
+		final boolean last_current = checkbox_current.isSelected();
+		checkbox_current.setSelected(retain_tick);
+		if(!retain_tick)
+			this.current_tick = last_tick;
+		else {
+			last_tick = this.current_tick >= 0 ? this.current_tick : 0;
+			current_tick = -1;
+		}
+		
+		if(last_current != retain_tick) {
+			if(checkbox_split.isSelected())
+				createSplitSpinners();
+			else
+				createSingleSpinner();
+		}
 	}
 
 	@Override

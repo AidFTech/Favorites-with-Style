@@ -46,6 +46,38 @@ bind_java_type! {
 }
 
 impl<'local> JMidiManager<'local> {
+	///Send a list of MIDI events.
+	pub fn send_midi_list(self, env: &mut Env<'_>, events: Vec<Vec<u8>>) {
+		let id_name = match self.get_output_id(env) {
+			Ok(id_name) => id_name.to_string(),
+			Err(_) => {
+				return;
+			}
+		};
+
+		let midi_out = MidiOutput::new("FWS").unwrap();
+		let port = match midi_out.find_port_by_id(id_name) {
+			Some(port) => port,
+			None => {
+				return;
+			}
+		};
+
+		let mut connection = match midi_out.connect(&port, &port.id()) {
+			Ok(connection) => connection,
+			Err(e) => {
+				println!("{}", e);
+				return;
+			}
+		};
+
+		for ev in events {
+			let _ = connection.send(&ev);
+		}
+
+		connection.close();
+	}
+
 	///Play and loop a style.
 	pub fn play_style(self, env: &mut Env<'_>, j_style: JFwsStyle, start_options: &JMidiStartOptions<'local>) {
 		let j_options = self.player_options(env).unwrap();
@@ -471,10 +503,32 @@ impl<'local> JMidiManager<'local> {
 			}
 		};
 
+		let j_start_messages = start_options.start_messages(env).unwrap();
+		let start_message_count = j_start_messages.len(env).unwrap();
+
+		for m in 0..start_message_count {
+			let j_message = j_start_messages.get_element(env, m).unwrap();
+			let mut i_message = vec![0;j_message.len(env).unwrap()];
+			let mut message = Vec::new();
+			
+			let _ = j_message.get_region(env, 0, &mut i_message);
+
+			for i in i_message {
+				message.push(((i as i16)&0xFF) as u8);
+			}
+
+			let _ = connection.send(&message);
+		}
+
+		thread::sleep(Duration::from_millis(20));
+
 		let start_tick = options.start_tick(env).unwrap();
 
 		let melody_rh = options.song_melody_rh(env).unwrap() as u8;
 		let melody_lh = options.song_melody_lh(env).unwrap() as u8;
+
+		let split_point = options.split_point(env).unwrap();
+		let chord_part = options.chord_part(env).unwrap();
 
 		let tpq = sequence.get_tpq(env).unwrap() as u64;
 		let (time_events, note_events, key_events, chord_events, style_events) = sequence.get_all_events(env, start_options, &[melody_rh, melody_lh]);
@@ -1089,6 +1143,10 @@ impl<'local> JMidiManager<'local> {
 									let info_display = t_options.info_display(env).unwrap();
 									
 									for n in &new_notes_on {
+										if chord_part && (*n as i8) <= split_point {
+											continue;
+										}
+
 										let _ = env.call_method(&info_display, jni_str!("refreshMelody"), jni_sig!((jbyte, jboolean)), &[Byte(*n as i8), Bool(true)]);
 									}
 

@@ -11,12 +11,16 @@ import fwsevents.FWSEvent;
 import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
 import fwsevents.FWSShortEvent;
+import fwsevents.FWSStyleChangeEvent;
 import fwsevents.FWSVoiceEvent;
 import main_window.FWSEditorMainWindow;
+import voices.Voice;
+
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
+import controllers.FWSEditor;
 import event_dialogs.ChannelPressureEventDialog;
 import event_dialogs.ControlEventDialog;
 import event_dialogs.KeyPressureEventDialog;
@@ -33,10 +37,12 @@ public class EventListWindow extends JDialog {
 	private static final long serialVersionUID = 7776560316483565493L;
 
 	private ArrayList<FWSEvent> event_list;
+	private FWSEditor controller;
 
 	public EventListWindow(FWSEditorMainWindow parent, FWSSequence sequence) {
 		super(parent, true);
-
+		
+		controller = parent.getController();
 		EventListWindow self = this;
 
 		this.setTitle("Event List");
@@ -136,14 +142,31 @@ public class EventListWindow extends JDialog {
 	}
 
 	/** Populate/load an event list. */
-	private static void populateEventList(ArrayList<FWSEvent> event_list, FWSSequence sequence, DefaultListModel<String> event_list_model) {
+	private void populateEventList(ArrayList<FWSEvent> event_list, FWSSequence sequence, DefaultListModel<String> event_list_model) {
 		event_list_model.clear();
 		for(int i=0;i<event_list.size();i+=1) {
 			final long full_tick = event_list.get(i).tick;
 			final int m = sequence.getMeasureAt(full_tick) + 1, b = sequence.getBeatAt(full_tick) + 1;
 			final long tick = sequence.getTickAt(full_tick);
 
-			event_list_model.addElement(m + ":" + b + ":" + tick + ": " + event_list.get(i).toString());
+			String event_string = event_list.get(i).toString();
+			if(event_list.get(i) instanceof FWSVoiceEvent) {
+				FWSVoiceEvent voice_event = (FWSVoiceEvent)event_list.get(i);
+				Voice[] voice_names = controller.getVoiceList();
+				Voice match = Voice.matchVoice(voice_names, voice_event.voice, voice_event.voice_lsb, voice_event.voice_msb);
+
+				if(match != null)
+					event_string = "Channel " + (voice_event.channel + 1) + ": " + match.name;
+
+			} else if(event_list.get(i) instanceof FWSStyleChangeEvent) {
+				FWSStyleChangeEvent style_event = (FWSStyleChangeEvent)event_list.get(i);
+				if(!style_event.style_name.trim().isEmpty())
+					event_string = "Style: " + style_event.style_name + ", " + style_event.section_name;
+				else
+					event_string = "Style Off";
+			}
+
+			event_list_model.addElement(m + ":" + b + ":" + tick + ": " + event_string);
 		}
 	}
 }

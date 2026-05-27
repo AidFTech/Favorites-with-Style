@@ -1,5 +1,7 @@
 package fwsevents;
 
+import java.util.ArrayList;
+
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiEvent;
 import javax.sound.midi.SysexMessage;
@@ -34,17 +36,25 @@ public class FWSSysexEvent extends FWSEvent {
 	}
 
 	public byte[] getMIDIBytes() {
-		byte[] bytes;
-		if(data.length > 0 && (data[0] == 0xF7 || data[0] == 0xF0)) {
-			bytes = new byte[data.length];
-			for(int i=0;i<data.length;i+=1)
-				bytes[i] = data[i];
-		} else {
-			bytes = new byte[data.length + 1];
-			bytes[0] = (byte)0xF7;
-			for(int i=0;i<data.length;i+=1)
-				bytes[i+1] = data[i];
-		}
+		ArrayList<Byte> data_vec = new ArrayList<>(0);
+		for(int i=0;i<data.length;i+=1)
+			data_vec.add(Byte.valueOf(data[i]));
+
+		if(data_vec.size() > 0 && (data_vec.get(0)&0xFF) != 0xF0)
+			data_vec.add(0, (byte)0xF0);
+		else if(data_vec.size() <= 0)
+			data_vec.add((byte)0xF0);
+
+		if(data_vec.size() > 0 && (data_vec.get(data_vec.size()-1)&0xFF) == 0xF7) {
+
+		} else
+			data_vec.add((byte)0xF7);
+
+		byte[] bytes = new byte[data_vec.size()];
+
+		for(int i=0;i<bytes.length;i+=1)
+			bytes[i] = data_vec.get(i);
+		
 		return bytes;
 	}
 

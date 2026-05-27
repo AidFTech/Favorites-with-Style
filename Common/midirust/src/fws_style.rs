@@ -13,12 +13,12 @@ const ROOT_FIXED_TABLE: [(i8, [i8; 12]); 4] = [(0, [0, 1, 2, 10, 11, 0, 1, 11, 0
 												(7, [7, 8, 9, 7, 8, 9, 10, 6, 7, 8, 9, 6]),
 												(11, [11, 0, 1, 10, 11, 0, 1, 11, 0, 1, 2, 10])];
 
-const CHORD_TABLE_MELODY: [(i8, [i8; 38]); 6] = [(0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0]),
-												(2, [2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 2, 2, 0, 0, 2, 0, 0, 2, 0, 0, 2, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 2, -1, 0, 2, 0]),
-												(4, [4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 5, 2, -1, 4, 4, 3]),
-												(7, [7, 7, 7, 7, 7, 7, 7, 8, 7, 9, 7, 6, 7, 10, 5, 7, 11, 6, 6, 7, 7, 6, 10, 6, 9, 10, 8, 10, 8, 8, 12, 7, 7, 7, -1, 6, 6, 6]),
-												(9, [9, 9, 9, 9, 9, 9, 9, 10, 7, 9, 10, 6, 7, 10, 10, 7, 7, 6, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 8, 12, -1, 7, 7, -1, 6, 9, 6]),
-												(11, [12, 12, 11, 11, 11, 11, 14, 12, 12, 12, 10, 10, 14, 14, 10, 11, 14, 12, 9, 10, 10, 10, 14, 10, 10, 13, 10, 15, 11, 10, 12, 12, 12, 12, -1, 11, 12, 11])];
+const CHORD_TABLE_MELODY: [(i8, [i8; 38]); 6] = [(0,  [0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  -1, 0,  0,  0]),
+												 (2,  [2,  2,  2,  2,  2,  2,  2,  2,  2,  2,  3,  1,  2,  2,  2,  2,  2,  0,  2,  0,  0,  2,  2,  2,  2,  1,  1,  3,  2,  2,  0,  0,  2,  2,  -1, 2,  2,  1]),
+												 (4,  [4,  4,  4,  4,  4,  4,  4,  4,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  4,  5,  4,  4,  4,  4,  4,  4,  4,  4,  4,  0,  7,  5,  2,  -1, 4,  4,  3]),
+												 (7,  [7,  7,  7,  7,  7,  7,  7,  8,  7,  9,  7,  6,  7,  7,  7,  7,  7,  6,  6,  7,  7,  6,  7 , 7,  7,  7,  7,  7,  8,  8,  12, 7,  7,  7,  -1, 6,  6,  6]),
+												 (9,  [9,  9,  9,  9,  9,  9,  9,  10, 7,  9,  10, 8,  7,  10, 10, 10, 10, 8,  8,  10, 10, 10, 10, 9,  9,  10, 8,  10, 9,  8,  12, 7,  7,  9,  -1, 9,  6,  9]),
+												 (11, [12, 12, 11, 11, 12, 11, 12, 12, 12, 12, 10, 10, 12, 10, 10, 11, 11, 12, 12, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 10, 12, 12, 12, 12, -1, 11, 12, 11])];
 
 const CHORD_TABLE_CHORD: [(i8, [i8; 38]); 4] = [(0, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0]),
 												(4, [4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 5, 2, -1, 4, 4, 3]),
@@ -633,7 +633,19 @@ impl <'local> FwsStyle {
 	}
 
 	///Get a chord from notes input on the keyboard.
-	pub fn get_chord(notes: &[i8]) -> (Note, Chord) {
+	pub fn get_chord(notes_down: &[i8]) -> (Note, Chord) {
+		let mut notes_on = [false; 12];
+
+		let mut notes = Vec::new(); 
+		for i in 0..notes_down.len() {
+			let key = (notes_down[i]%12) as usize;
+
+			if !notes_on[key] {
+				notes.push(notes_down[i]);
+				notes_on[key] = true;
+			}
+		}
+
 		let note_count = notes.len();
 
 		//Find the base note.
@@ -1328,6 +1340,17 @@ impl StyleManager {
 						note_bytes.push(ev.0.data.clone());
 					} else {
 						return_bytes.push(ev.0.data.clone());
+						let data = &ev.0.data;
+
+						if data.len() >= 3 && (data[0]&0xE0) == 0x80 {
+							let channel = (data[0]&0xF) as usize;
+							let note = data[1] as usize;
+							let note_on = data[2] > 0 && (data[0]&0xF0) == 0x90;
+
+							self.note_on[channel][note] = note_on;
+						}
+
+						self.set_short_settings(data.clone());
 					}
 				} else if effective_tick > style_tick {
 					new_tick_vec.push(effective_tick);
@@ -1477,7 +1500,7 @@ impl StyleManager {
 						if ve.len() >= 2 && (ve[1] == 0x0 || ve[1] == 0x20) {
 							voice_event = true;
 						} else if ve.len() >= 2 && ve[1] == 0x7 { //Volume.
-							ve[2] = ((ve[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as u8;
+							ve[2] = self.get_accomp_volume(ve[2] as i8) as u8;
 						}
 					}
 
@@ -1504,6 +1527,20 @@ impl StyleManager {
 		return (return_bytes, (new_tick-old_tick)*self.song_tpq/self.style_tpq + song_tick);
 	}
 
+	///Calculate the proper accompaniment volume to play.
+	fn get_accomp_volume(&self, src: i8) -> i8 {
+		if src < 0 {
+			return -1;
+		}
+
+		let full_volume = (src as i16)*self.accomp_volume/self.rec_accomp_volume;
+		if full_volume < 128 {
+			return full_volume as i8;
+		} else {
+			return 127;
+		}
+	}
+
 	///Set the style short-message settings to keep track of. Return whether the short was set, if false, the short was already set to the expected value.
 	fn set_short_settings(&mut self, msg: Vec<u8>) -> bool {
 		if msg.len() <= 0 {
@@ -1526,7 +1563,7 @@ impl StyleManager {
 				let accomp_vol_set = msg[1] == 0x7;
 
 				let des_value = if accomp_vol_set {
-					((msg[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as u8
+					self.get_accomp_volume(msg[2] as i8) as u8
 				} else {
 					msg[2]
 				};
@@ -1928,7 +1965,7 @@ impl StyleManager {
 							let volume = ev.data[1] == 0x7;
 							
 							let value = if volume {
-								((ev.data[2] as i16)*self.accomp_volume/self.rec_accomp_volume) as i8
+								self.get_accomp_volume(ev.data[2] as i8)
 							} else {
 								ev.data[2] as i8
 							};

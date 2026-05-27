@@ -56,12 +56,16 @@ pub fn Java_controllers_MIDIManager_getMidiInputDeviceList<'local>(mut env: EnvU
 			device_count += 1;
 		}
 		
-		let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, device_count, &dev_list[0]).unwrap();
-		for i in 0..device_count {
-			let _ = info_arr.set_element(&mut env, i, &dev_list[i]);
+		if dev_list.len() > 0 {
+			let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, device_count, &dev_list[0]).unwrap();
+			for i in 0..device_count {
+				let _ = info_arr.set_element(&mut env, i, &dev_list[i]);
+			}
+			Ok(info_arr)
+		} else {
+			let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, 0, JMidiDevice::null()).unwrap();
+			Ok(info_arr)
 		}
-
-		Ok(info_arr)
 	});
 
 	ret.resolve::<ThrowRuntimeExAndDefault>()
@@ -104,12 +108,16 @@ pub fn Java_controllers_MIDIManager_getMidiOutputDeviceList<'local>(mut env: Env
 			device_count += 1;
 		}
 		
-		let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, device_count, &dev_list[0]).unwrap();
-		for i in 0..device_count {
-			let _ = info_arr.set_element(&mut env, i, &dev_list[i]);
+		if dev_list.len() > 0 {
+			let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, device_count, &dev_list[0]).unwrap();
+			for i in 0..device_count {
+				let _ = info_arr.set_element(&mut env, i, &dev_list[i]);
+			}
+			Ok(info_arr)
+		} else {
+			let info_arr = JObjectArray::<JMidiDevice>::new(&mut env, 0, JMidiDevice::null()).unwrap();
+			Ok(info_arr)
 		}
-
-		Ok(info_arr)
 	});
 
 	ret.resolve::<ThrowRuntimeExAndDefault>()
@@ -210,6 +218,37 @@ pub fn Java_controllers_MIDIManager_playStyleJNI<'local>(mut env: EnvUnowned<'lo
 pub fn Java_controllers_MIDIManager_playSongJNI<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, song: JFWSSong<'local>, start_options: JMidiStartOptions<'local>) {
 	let _ = env.with_env(|env| -> Result<_, Error> {
 		this.play_song(env, song, &start_options);
+		Ok(JValue::Void)
+	});
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub fn Java_controllers_MIDIManager_sendMIDIListJNI<'local>(mut env: EnvUnowned<'local>, this: JMidiManager<'local>, j_messages: JObjectArray) {
+	let _ = env.with_env(|env| -> Result<_, Error> {
+		let message_count = j_messages.len(env).unwrap();
+
+		let mut messages = Vec::new();
+
+		for m in 0..message_count {
+			let j_message_obj = j_messages.get_element(env, m).unwrap();
+			let j_message = env.cast_local::<JByteArray>(j_message_obj).unwrap();
+			
+			let message_len = j_message.len(env).unwrap();
+			let mut message = vec![0; message_len];
+
+			let _ = j_message.get_region(env, 0, &mut message);
+
+			let mut umessage = Vec::new();
+			for d in message {
+				umessage.push(((d as i16)&0xFF) as u8);
+			}
+
+			messages.push(umessage);
+		}
+
+		this.send_midi_list(env, messages);
+
 		Ok(JValue::Void)
 	});
 }

@@ -109,14 +109,20 @@ public class FWSEditor extends FWS {
 	protected void loadSong(FWSSong song) {
 		this.loaded_song = song;
 		this.active_sequence = loaded_song.getSongSequence();
-		main_window.setDisplayMode(DisplayMode.DISPLAY_MODE_SONG);
-		main_window.getViewPort().fill(this.active_sequence, true);
-		main_window.refreshViewport();
+		
+		if(main_window != null) {
+			main_window.setDisplayMode(DisplayMode.DISPLAY_MODE_SONG);
+			main_window.getViewPort().fill(this.active_sequence, true);
+			main_window.refreshViewport();
+		}
 	}
 
 	/** Set the loaded song file reference. */
 	public void setLoadedSongFile(File loaded_song_file) {
 		super.setLoadedSongFile(loaded_song_file);
+		if(main_window == null)
+			return;
+
 		if(loaded_song_file != null)
 			main_window.setSongTitle(loaded_song_file.getName());
 		else
@@ -330,6 +336,13 @@ public class FWSEditor extends FWS {
 				MIDIExportOptions export_options = new MIDIExportOptions();
 				export_options.export_melody_lh = midi_manager.getPlayerOptions().export_melody_lh;
 				export_options.export_melody_rh = midi_manager.getPlayerOptions().export_melody_rh;
+				
+				if(this.output_profile != null)
+					export_options.profile = this.output_profile.getInstrumentFamily();
+				else
+					export_options.profile = "";
+
+				export_options.instrument = "";
 
 				byte[] default_black_chords = midi_manager.getPlayerOptions().black_chord_display, song_black_chords = export_options.black_chord_display;
 				for(int i=0;i<default_black_chords.length;i+=1)
@@ -341,8 +354,17 @@ public class FWSEditor extends FWS {
 				if(export_window.getExportFile() == null)
 					return;
 
+				final String original_profile = this.output_profile != null ? this.output_profile.getInstrumentFamily() : "",
+							original_instrument = this.output_instrument;
+
+				this.setOutputFamily(export_options.profile);
+				this.output_instrument = export_options.instrument;
+
 				Sequence midi_sequence = midi_manager.getSongMIDISequence(loaded_song, export_options);
 				MidiSystem.write(midi_sequence, 0, export_window.getExportFile());
+
+				this.setOutputFamily(original_profile);
+				this.output_instrument = original_instrument;
 			} catch (InvalidMidiDataException e) {
 				
 			} catch (IOException e) {

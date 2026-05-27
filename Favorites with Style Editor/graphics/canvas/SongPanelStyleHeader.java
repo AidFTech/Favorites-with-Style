@@ -68,130 +68,136 @@ public class SongPanelStyleHeader extends JPanel {
 		this.setPreferredSize(new Dimension(w,FWS.event_height*10));
 		this.setSize(new Dimension(w,FWS.event_height*10));
 
+		SongPanelStyleHeader self = this;
+
 		this.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent arg0) {
-				DisplayMode display_mode = vp_parent.getMainWindow().getDisplayMode();
+				if(arg0.getButton() == MouseEvent.BUTTON1) {
+					DisplayMode display_mode = vp_parent.getMainWindow().getDisplayMode();
 
-				Sprite[] sprites = vp_parent.getSprites();
-				for(int i=0;i<sprites.length;i+=1)
-					sprites[i].deselect();
+					Sprite[] sprites = vp_parent.getSprites();
+					for(int i=0;i<sprites.length;i+=1)
+						sprites[i].deselect();
 
-				if(vp_parent.getPlacementLength() == NoteToggle.NOTE_TOGGLE_CTL) {
-					FWSSequence active_sequence = parent.getActiveSequence();
-					if(active_sequence == null)
-						return;
-					final int snap = vp_parent.getSnap();
-					final long tick = mt/snap*snap;
+					if(vp_parent.getPlacementLength() == NoteToggle.NOTE_TOGGLE_CTL) {
+						FWSSequence active_sequence = parent.getActiveSequence();
+						if(active_sequence == null)
+							return;
+						final int snap = vp_parent.getSnap();
+						final long tick = mt/snap*snap;
 
-					switch(my/FWS.event_height*FWS.event_height) {
-					case chord_y:
-						if(display_mode == DisplayMode.DISPLAY_MODE_STYLE) { //Style section header.
-							FWSSectionNameEvent new_section = new FWSSectionNameEvent();
-							long[] measures = active_sequence.getMeasureTicks();
-							for(int m=0;m<measures.length;m+=1) {
-								if(measures[m] == tick) {
-									new_section.tick = tick;
-									break;
-								} else if(measures[m] > tick) {
-									new_section.tick = measures[m > 0 ? m-1 : 0];
-									break;
+						switch(my/FWS.event_height*FWS.event_height) {
+						case chord_y:
+							if(display_mode == DisplayMode.DISPLAY_MODE_STYLE) { //Style section header.
+								FWSSectionNameEvent new_section = new FWSSectionNameEvent();
+								long[] measures = active_sequence.getMeasureTicks();
+								for(int m=0;m<measures.length;m+=1) {
+									if(measures[m] == tick) {
+										new_section.tick = tick;
+										break;
+									} else if(measures[m] > tick) {
+										new_section.tick = measures[m > 0 ? m-1 : 0];
+										break;
+									}
 								}
-							}
-							new SectionNameEventDialog(vp_parent.getMainWindow(), new_section);
-						} else if(display_mode == DisplayMode.DISPLAY_MODE_SONG) { //Song header.
-							FWSChordEvent new_chord = new FWSChordEvent();
-							new_chord.tick = tick;
+								new SectionNameEventDialog(vp_parent.getMainWindow(), new_section);
+							} else if(display_mode == DisplayMode.DISPLAY_MODE_SONG) { //Song header.
+								FWSChordEvent new_chord = new FWSChordEvent();
+								new_chord.tick = tick;
 
-							new ChordEventDialog(vp_parent.getMainWindow(), new_chord);
-						}
-						break;
-					case style_y:
-					case style_y + FWS.event_height:
-						if(display_mode == DisplayMode.DISPLAY_MODE_SONG) { //Song header.
-							FWSStyleChangeEvent new_style;
-							if(active_sequence.getStyleAt(tick) != null) {
-								new_style = new FWSStyleChangeEvent(active_sequence.getStyleAt(tick));
-								new_style.style_tick = -1;
+								new ChordEventDialog(vp_parent.getMainWindow(), new_chord);
+							}
+							break;
+						case style_y:
+						case style_y + FWS.event_height:
+							if(display_mode == DisplayMode.DISPLAY_MODE_SONG) { //Song header.
+								FWSStyleChangeEvent new_style;
+								if(active_sequence.getStyleAt(tick) != null) {
+									new_style = new FWSStyleChangeEvent(active_sequence.getStyleAt(tick));
+									new_style.style_tick = -1;
+								} else {
+									new_style = new FWSStyleChangeEvent();
+									new_style.style_tick = 0;
+									
+									if(controller.getLoadedSong().getStyleNames().length > 0)
+										new_style.style_name = controller.getLoadedSong().getStyleNames()[0];
+								}
+								new_style.tick = tick;
+								new StyleChangeEventDialog(vp_parent.getMainWindow(), new_style);
+							}
+							break;
+						case tempo_y:
+							{
+								FWSTempoEvent new_tempo;
+								if(active_sequence.getTempoAt(tick) != null)
+									new_tempo = new FWSTempoEvent(active_sequence.getTempoAt(tick));
+								else
+									new_tempo = new FWSTempoEvent();
+								new_tempo.tick = tick;
+								new TempoEventDialog(vp_parent.getMainWindow(), new_tempo);
+							}
+							break;
+						case time_y:
+							if(display_mode != DisplayMode.DISPLAY_MODE_STYLE) {
+								FWSTimeSignatureEvent new_time;
+								if(active_sequence.getTimeSignatureAt(tick) != null)
+									new_time = new FWSTimeSignatureEvent(active_sequence.getTimeSignatureAt(tick));
+								else
+									new_time = new FWSTimeSignatureEvent();
+								new_time.tick = tick;
+								long[] measures = active_sequence.getMeasureTicks();
+								for(int m=0;m<measures.length;m+=1) {
+									if(measures[m] == tick) {
+										new_time.tick = tick;
+										break;
+									} else if(measures[m] > tick) {
+										new_time.tick = measures[m > 0 ? m-1 : 0];
+										break;
+									}
+								}
+
+								new TimeEventDialog(vp_parent.getMainWindow(), new_time);
 							} else {
-								new_style = new FWSStyleChangeEvent();
-								new_style.style_tick = 0;
-								
-								if(controller.getLoadedSong().getStyleNames().length > 0)
-									new_style.style_name = controller.getLoadedSong().getStyleNames()[0];
+								JOptionPane.showMessageDialog(vp_parent.getMainWindow(), "SFF1 styles cannot contain time signature change events.", "No Time Signatures", JOptionPane.WARNING_MESSAGE);
 							}
-							new_style.tick = tick;
-							new StyleChangeEventDialog(vp_parent.getMainWindow(), new_style);
-						}
-						break;
-					case tempo_y:
-						{
-							FWSTempoEvent new_tempo;
-							if(active_sequence.getTempoAt(tick) != null)
-								new_tempo = new FWSTempoEvent(active_sequence.getTempoAt(tick));
-							else
-								new_tempo = new FWSTempoEvent();
-							new_tempo.tick = tick;
-							new TempoEventDialog(vp_parent.getMainWindow(), new_tempo);
-						}
-						break;
-					case time_y:
-						if(display_mode != DisplayMode.DISPLAY_MODE_STYLE) {
-							FWSTimeSignatureEvent new_time;
-							if(active_sequence.getTimeSignatureAt(tick) != null)
-								new_time = new FWSTimeSignatureEvent(active_sequence.getTimeSignatureAt(tick));
-							else
-								new_time = new FWSTimeSignatureEvent();
-							new_time.tick = tick;
-							long[] measures = active_sequence.getMeasureTicks();
-							for(int m=0;m<measures.length;m+=1) {
-								if(measures[m] == tick) {
-									new_time.tick = tick;
-									break;
-								} else if(measures[m] > tick) {
-									new_time.tick = measures[m > 0 ? m-1 : 0];
-									break;
-								}
+							break;
+						case key_y:
+							{
+								FWSKeySignatureEvent new_key;
+								if(active_sequence.getKeySignatureAt(tick) != null)
+									new_key = new FWSKeySignatureEvent(active_sequence.getKeySignatureAt(tick));
+								else
+									new_key = new FWSKeySignatureEvent();
+								new_key.tick = tick;
+								new KeyEventDialog(vp_parent.getMainWindow(), new_key);
 							}
-
-							new TimeEventDialog(vp_parent.getMainWindow(), new_time);
-						} else {
-							JOptionPane.showMessageDialog(vp_parent.getMainWindow(), "SFF1 styles cannot contain time signature change events.", "No Time Signatures", JOptionPane.WARNING_MESSAGE);
+							break;
+						case text_y:
+							{
+								FWSMiscMIDIEvent new_text = new FWSMiscMIDIEvent();
+								new_text.tick = tick;
+								new TextEventDialog(vp_parent.getMainWindow(), new_text);
+							}
+							break;
+						case sysex_y:
+							{
+								FWSSysexEvent new_sysex = new FWSSysexEvent();
+								new_sysex.tick = tick;
+								new SysexEventDialog(vp_parent.getMainWindow(), new_sysex);
+							}
+							break;
+						case other_y:
+							{
+								FWSMiscMIDIEvent new_other = new FWSMiscMIDIEvent();
+								new_other.tick = tick;
+								new MiscEventDialog(vp_parent.getMainWindow(), new_other);
+							}
+							break;
 						}
-						break;
-					case key_y:
-						{
-							FWSKeySignatureEvent new_key;
-							if(active_sequence.getKeySignatureAt(tick) != null)
-								new_key = new FWSKeySignatureEvent(active_sequence.getKeySignatureAt(tick));
-							else
-								new_key = new FWSKeySignatureEvent();
-							new_key.tick = tick;
-							new KeyEventDialog(vp_parent.getMainWindow(), new_key);
-						}
-						break;
-					case text_y:
-						{
-							FWSMiscMIDIEvent new_text = new FWSMiscMIDIEvent();
-							new_text.tick = tick;
-							new TextEventDialog(vp_parent.getMainWindow(), new_text);
-						}
-						break;
-					case sysex_y:
-						{
-							FWSSysexEvent new_sysex = new FWSSysexEvent();
-							new_sysex.tick = tick;
-							new SysexEventDialog(vp_parent.getMainWindow(), new_sysex);
-						}
-						break;
-					case other_y:
-						{
-							FWSMiscMIDIEvent new_other = new FWSMiscMIDIEvent();
-							new_other.tick = tick;
-							new MiscEventDialog(vp_parent.getMainWindow(), new_other);
-						}
-						break;
 					}
+				} else if(arg0.getButton() == MouseEvent.BUTTON3) {
+					parent.showPopup(self, arg0);
 				}
 			}
 

@@ -49,6 +49,8 @@ import song.FWSSongMetadata;
 import style.ChordBody;
 import style.Style;
 import voices.InstrumentProfile;
+import voices.ProfileSubstitution;
+import voices.Voice;
 
 public class SaveLoadController {
 	private FWS controller;
@@ -57,6 +59,7 @@ public class SaveLoadController {
 	private static final String DEFAULTS = "FWSDefaults.ini", DEFAULTS_HEADER = "FWSDefaults";
 	private static final String KEY_LAST_PATH = "LastPath", KEY_DATA_PATH = "DataPath";
 	private static final String KEY_FAMILY = "InstrumentFamily", KEY_VOICE_LIST = "InstrumentVoices";
+	private static final String KEY_OUTPUT_FAMILY = "OutputFamily", KEY_OUTPUT_INSTRUMENT = "OutputInstrument";
 
 	public SaveLoadController(FWS controller) {
 		this.controller = controller;
@@ -93,6 +96,18 @@ public class SaveLoadController {
 				controller.setVoiceList(instrument);
 			else
 				rewrite_init = true;
+
+			final String output_family = main_ini.get(DEFAULTS_HEADER, KEY_OUTPUT_FAMILY);
+			if(output_family != null)
+				controller.setOutputFamily(output_family);
+			else
+				rewrite_init = true;
+
+			final String output_instrument = main_ini.get(DEFAULTS_HEADER, KEY_OUTPUT_INSTRUMENT);
+			if(output_instrument != null)
+				controller.output_instrument = output_instrument;
+			else
+				rewrite_init = true;
 		} catch(FileNotFoundException e) {
 			saveDefaults();
 		} catch(IOException e) {
@@ -120,7 +135,7 @@ public class SaveLoadController {
 			}
 		}
 		
-		if(data_path.isBlank()) {
+		if(data_path.isEmpty()) {
 			try {
 				final String home_dir = System.getProperty("user.home");
 				
@@ -138,6 +153,12 @@ public class SaveLoadController {
 		else
 			main_ini.put(DEFAULTS_HEADER, KEY_FAMILY, "");
 		main_ini.put(DEFAULTS_HEADER, KEY_VOICE_LIST, controller.active_instrument);
+
+		if(controller.output_profile != null)
+			main_ini.put(DEFAULTS_HEADER, KEY_OUTPUT_FAMILY, controller.output_profile.getInstrumentFamily());
+		else
+			main_ini.put(DEFAULTS_HEADER, KEY_OUTPUT_FAMILY, "");
+		main_ini.put(DEFAULTS_HEADER, KEY_OUTPUT_INSTRUMENT, controller.output_instrument);
 
 		try {
 			main_ini.store();
@@ -351,7 +372,7 @@ public class SaveLoadController {
 
 	/** Add the current list of instrument profiles to the list. */
 	protected void getInstrumentProfiles(Map<String, InstrumentProfile> profile_list) {
-		if(data_path != null && !data_path.isBlank())
+		if(data_path != null && !data_path.isEmpty())
 			getInstrumentProfiles(controller.instrument_profiles, new File(data_path));
 	}
 
@@ -431,11 +452,22 @@ public class SaveLoadController {
 					String accomp_volume = main_ini.get("InstrumentFamily", "AccompVol");
 					if(accomp_volume != null)
 						profile.setAccompanimentVolume(Short.parseShort(accomp_volume));
+
+					String reset = main_ini.get("InstrumentFamily", "Reset");
+					if(reset != null)
+						profile.setReset(Boolean.parseBoolean(reset));
 				} catch (IOException | NumberFormatException e) {
 					continue;
 				}
 			} else if(f.getName().equalsIgnoreCase("PROFILESCRIPT.PY")) { //Profile script.
 				profile.setScript(f);
+			} else if(f.getName().equalsIgnoreCase("SUBSTITUTIONS.XML")) { //Substitutions.
+				try {
+					ProfileSubstitution[] substitutions = getSubstitutions(f);
+					profile.setSubstitutions(substitutions);
+				} catch (ParserConfigurationException | SAXException | IOException e) {
+					
+				}
 			}
 		}
 	}
@@ -974,5 +1006,81 @@ public class SaveLoadController {
 
 		for(int i=0;i<change_events.size();i+=1)
 			song.getSongSequence().addEvent(change_events.get(i));
+	}
+
+	/** Get profile substitutions from a file. */
+	private static ProfileSubstitution[] getSubstitutions(File input) throws ParserConfigurationException, SAXException, IOException {
+		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder doc_builder = doc_factory.newDocumentBuilder();
+
+		Document subs_doc = doc_builder.parse(input);
+		subs_doc.getDocumentElement().normalize();
+
+		Element root = subs_doc.getDocumentElement();
+
+		ArrayList<ProfileSubstitution> substitutions_vec = new ArrayList<>(0);
+
+		NodeList subs_nodes = root.getChildNodes();
+		final int len = subs_nodes.getLength();
+
+		for(int i=0;i<len;i+=1) {
+			Node item = subs_nodes.item(i);
+			if(item.getNodeType() == Node.ELEMENT_NODE) {
+				Element element = (Element)item;
+				if(item.getNodeName().equalsIgnoreCase("SUB")) { //Substitution.
+					NodeList sub_nodes = element.getChildNodes();
+					final int slen = sub_nodes.getLength();
+					
+					String family = "";
+					byte orig_msb = -1, orig_lsb = -1, orig_voice = -1;
+					byte alt_msb = -1, alt_lsb = -1, alt_voice = -1;
+
+					for(int j=0;j<slen;j+=1) {
+						Node s_item = sub_nodes.item(j);
+						
+						if(s_item == null)
+							continue;
+						
+						if(s_item.getNodeType() == Node.ELEMENT_NODE) {
+							Element s_element = (Element)s_item;
+							if(s_item.getNodeName().equalsIgnoreCase("FAMILY"))
+								family = s_element.getTextContent();
+							else if(s_item.getNodeName().equalsIgnoreCase("ORIGINAL")) { //Original voice.
+								final int full_voice = Integer.parseInt(s_element.getTextContent());
+								final byte msb = (byte)((full_voice>>14)&0x7F);
+								final byte lsb = (byte)((full_voice>>7)&0x7F);
+								final byte voice = (byte)((full_voice)&0x7F);
+
+								orig_msb = msb;
+								orig_lsb = lsb;
+								orig_voice = voice;
+							} else if(s_item.getNodeName().equalsIgnoreCase("ALTERNATE")) { //Alternate voice.
+								final int full_voice = Integer.parseInt(s_element.getTextContent());
+								final byte msb = (byte)((full_voice>>14)&0x7F);
+								final byte lsb = (byte)((full_voice>>7)&0x7F);
+								final byte voice = (byte)((full_voice)&0x7F);
+
+								alt_msb = msb;
+								alt_lsb = lsb;
+								alt_voice = voice;
+							}
+						}
+					}
+
+					if(orig_msb < 0 || orig_lsb < 0 || orig_voice < 0 || alt_msb < 0 || alt_lsb < 0 || alt_voice < 0)
+						continue;
+					
+					Voice original = new Voice("", orig_voice, orig_lsb, orig_msb);
+					Voice alternate = new Voice("", alt_voice, alt_lsb, alt_msb);
+					
+					ProfileSubstitution substitution = new ProfileSubstitution(original, alternate, family);
+					substitutions_vec.add(substitution);
+				}
+			}
+		}
+
+		ProfileSubstitution[] substitutions = new ProfileSubstitution[substitutions_vec.size()];
+		substitutions_vec.toArray(substitutions);
+		return substitutions;
 	}
 }
