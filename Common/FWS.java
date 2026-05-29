@@ -38,6 +38,8 @@ public abstract class FWS {
 		save_load_controller = new SaveLoadController(this);
 		active_voice_list = Voice.getGMVoices();
 		midi_manager = new MIDIManager(this);
+		
+		org.python.core.Options.importSite = false;
 
 		//Make sure the Python interpreter works.
 		PythonInterpreter interpreter = new PythonInterpreter();

@@ -142,4 +142,38 @@ public class FWSKeySignatureEvent extends FWSEvent {
 			return new MidiEvent[0];
 		}
 	}
+
+	/** Get the accidental count of a key. */
+	public static byte getAccidentalCount(final byte key, final boolean major) {
+		int accidentals = 7;
+
+		byte effective_key = (byte)(key%12);
+		if(!major)
+			effective_key = (byte)((effective_key+3)%12);
+
+		if(effective_key%2 == 0) {
+			accidentals = (7 + effective_key)%12;
+		} else {
+			accidentals = (1 + effective_key)%12;
+		}
+
+		return (byte)(accidentals - 7);
+	}
+
+	/** Get the key fron an accidental count. */
+	public static byte getKey(final byte accidental_count, final boolean major) {
+		final int effective_accidentals = accidental_count + 7;
+		byte key = 0;
+
+		if(effective_accidentals%2 == 1) {
+			key = (byte)((effective_accidentals+5)%12);
+		} else {
+			key = (byte)((effective_accidentals+11)%12);
+		}
+
+		if(!major)
+			key = (byte)((key + 9)%12);
+
+		return key;
+	}
 }

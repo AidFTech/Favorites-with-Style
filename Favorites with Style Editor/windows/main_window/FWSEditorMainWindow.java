@@ -12,6 +12,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 
 import controllers.FWSEditor;
+import fwsevents.FWSEvent;
 import fwsevents.FWSSequence;
 import infobox.InfoBox;
 import main_window.NoteToggleButton.NoteToggle;
@@ -21,6 +22,7 @@ import settings_dialogs.FirstVoicesWindow;
 import settings_dialogs.SequencePropertiesWindow;
 import settings_dialogs.SongPropertiesWindow;
 import settings_dialogs.StyleManagerWindow;
+import sprites.Sprite;
 import style.Style;
 import tools.EventListWindow;
 import tools.MIDIDeviceWindow;
@@ -570,7 +572,15 @@ public class FWSEditorMainWindow extends JFrame {
 		menu_item_transpose.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				new TransposeWindow(self, song_viewport.getActiveSequence());
+				ArrayList<FWSEvent> selected_events = new ArrayList<>();
+
+				Sprite[] sprites = song_viewport.getSprites();
+				for(Sprite sprite: sprites) {
+					if(sprite.getSelected())
+						selected_events.add(sprite.getEvent());
+				}
+
+				new TransposeWindow(self, song_viewport.getActiveSequence(), selected_events.size() > 0 ? selected_events : null, display_mode != DisplayMode.DISPLAY_MODE_STYLE);
 			}
 		});
 

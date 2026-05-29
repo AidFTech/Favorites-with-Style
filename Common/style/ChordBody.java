@@ -68,6 +68,68 @@ public class ChordBody {
 		refresh();
 	}
 
+	public ChordBody(byte newroot, byte newchord, boolean sharp) {
+		switch(newroot) {
+		case 0:
+			this.root = 0x31;
+			break;
+		case 2:
+			this.root = 0x32;
+			break;
+		case 4:
+			this.root = 0x33;
+			break;
+		case 5:
+			this.root = 0x34;
+			break;
+		case 7:
+			this.root = 0x35;
+			break;
+		case 9:
+			this.root = 0x36;
+			break;
+		case 11:
+			this.root = 0x37;
+			break;
+		case 1:
+			if(sharp)
+				this.root = 0x41;
+			else
+				this.root = 0x22;
+			break;
+		case 3:
+			if(sharp)
+				this.root = 0x42;
+			else
+				this.root = 0x23;
+			break;
+		case 6:
+			if(sharp)
+				this.root = 0x44;
+			else
+				this.root = 0x25;
+			break;
+		case 8:
+			if(sharp)
+				this.root = 0x45;
+			else
+				this.root = 0x26;
+			break;
+		case 10:
+			if(sharp)
+				this.root = 0x46;
+			else
+				this.root = 0x27;
+			break;
+		default:
+			this.root = 0x7F;
+			break;
+		}
+		this.chord = newchord;
+		this.root_note = -1;
+		refresh();
+	}
+
 	public ChordBody(ChordBody c) {
 		this.root = c.root;
 		this.root_note = c.root_note;
