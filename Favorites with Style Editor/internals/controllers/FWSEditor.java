@@ -276,6 +276,9 @@ public class FWSEditor extends FWS {
 		RecordLoadOptions options = new RecordLoadOptions();
 		options.live_import = false;
 		options.midi_clock = false;
+		options.add_shorts_to_beginning = false;
+		options.start_notes_at_zero = false;
+		
 		boolean[] channels = new boolean[16];
 		for(int b=0;b<midi_data.length;b+=1) {
 			if(midi_data[b].length <= 0)

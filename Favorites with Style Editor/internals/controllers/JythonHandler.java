@@ -22,6 +22,7 @@ public class JythonHandler {
 								ARG_SONG_EVENTS_MELODY = "melody_events", //All melody events.
 								ARG_SONG_EVENTS_ALL = "song_events", //All song events, including calculated style events.
 
+								//Only valid during calculatoin.
 								ARG_CHORD_MAIN = "main_chord", //Main chord.
 								ARG_CHORD_BASS = "bass_chord", //Bass chord.
 								ARG_CHORD_INV = "chord_inv", //Chord inversion.

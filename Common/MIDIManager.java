@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 
 import javax.sound.midi.MidiEvent;
+import javax.sound.midi.MidiMessage;
 import javax.sound.midi.Sequence;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.SysexMessage;
@@ -88,7 +89,7 @@ public class MIDIManager {
 			library_path = "Windows_x86_64";
 			file_name = "midirust.dll";
 		} else if(os.contains("MAC")) {
-			library_path = "Mac/x86_64";
+			library_path = "Mac_x86_64";
 			file_name = "libmidirust.jnilib";
 		} else if(os.contains("LINUX") || os.contains("UNIX")) {
 			library_path = "Linux_x86_64";
@@ -888,7 +889,7 @@ public class MIDIManager {
 
 						if(chord_index >= 0) {
 							rule = export_options.black_chord_display[chord_index];
-							byte new_root = 0x7F;
+							byte new_root = main_chord.getFullRoot();
 							switch(chord_index) {
 							case 0:
 								if(rule == MIDIPlayerOptions.CHORD_AS_SHARP)
@@ -948,7 +949,7 @@ public class MIDIManager {
 
 						if(chord_index >= 0) {
 							rule = export_options.black_chord_display[chord_index];
-							byte new_root = 0x7F;
+							byte new_root = bass_chord.getFullRoot();
 							switch(chord_index) {
 							case 0:
 								if(rule == MIDIPlayerOptions.CHORD_AS_SHARP)
@@ -1037,6 +1038,131 @@ public class MIDIManager {
 								}
 							}
 						}
+					}
+				}
+			}
+		}
+
+		//End of song events.
+		if(interpreter != null) {
+			String[] end_arg_names = JythonHandler.getRequiredArgs(interpreter, "on_song_play_file");
+			PyObject[] end_args = new PyObject[end_arg_names.length];
+
+			for(int i=0;i<end_arg_names.length;i+=1) {
+				Object set_obj = null;
+				switch(end_arg_names[i]) {
+					case JythonHandler.ARG_SONG_META:
+						set_obj = song.getSongMetadata();
+						break;
+					case JythonHandler.ARG_EXPORT_OPTIONS:
+						set_obj = export_options;
+						break;
+					case JythonHandler.ARG_INSTRUMENT:
+						set_obj = controller.output_instrument != null ? controller.output_instrument : controller.active_instrument;
+						break;
+					case JythonHandler.ARG_SONG_TITLE:
+						set_obj = song.getSongMetadata().long_title;
+						break;
+					case JythonHandler.ARG_SONG_SHORT_TITLE:
+						set_obj = song.getSongMetadata().short_title;
+						break;
+					case JythonHandler.ARG_SONG_TPQ:
+						set_obj = Integer.valueOf(song.getSongSequence().getTPQ());
+						break;
+					case JythonHandler.ARG_CHORD_EVENTS:
+						{
+							ArrayList<FWSEvent> common_events = song.getSongSequence().getCommonEvents();
+							ArrayList<FWSChordEvent> chord_events = new ArrayList<>();
+							for(FWSEvent event: common_events) {
+								if(event instanceof FWSChordEvent)
+									chord_events.add((FWSChordEvent)event);
+							}
+
+							set_obj = chord_events;
+						}
+						break;
+					case JythonHandler.ARG_SONG_EVENTS_MELODY:
+						set_obj = song.getSongSequence().getAllEvents();
+						break;
+					case JythonHandler.ARG_SONG_EVENTS_ALL:
+						{
+							FWSSequence full_sequence = FWSSequence.getFWSSequencefromSequence(ret_sequence);
+							set_obj = full_sequence.getAllEvents();
+						}
+						break;
+				}
+
+				interpreter.set("set_obj", set_obj);
+				end_args[i] = interpreter.get("set_obj");
+			}
+
+			PyFunction end_function = interpreter.get("on_song_play_file", PyFunction.class);
+
+			if(end_function != null) {
+				PyList song_list = null;
+
+				{
+					PyObject p_song_obj = end_function.__call__(end_args);
+					if(p_song_obj instanceof PyList)
+						song_list = (PyList)p_song_obj;
+					else if(p_song_obj instanceof PyByteArray)
+						song_list = new PyList(p_song_obj);
+				}
+
+				if(song_list != null) {
+					PyObject[] song_tuple_array = song_list.getArray();
+					for(PyObject msg: song_tuple_array) {
+						if(!(msg instanceof PyTuple))
+							continue;
+	
+						PyTuple msg_tuple = (PyTuple)msg;
+						PyObject[] msg_tuple_array = msg_tuple.getArray();
+
+						if(msg_tuple_array.length != 2)
+							continue;
+
+						if(!(msg_tuple_array[0] instanceof PyByteArray))
+							continue;
+
+						if(!(msg_tuple_array[1] instanceof PyLong) && !(msg_tuple_array[1] instanceof PyInteger))
+							continue;
+
+						PyByteArray p_msg_bytes = (PyByteArray)msg_tuple_array[0];
+						PyInteger[] p_msg_int = new PyInteger[p_msg_bytes.size()];
+						p_msg_bytes.toArray(p_msg_int);
+	
+						byte[] msg_bytes = new byte[p_msg_int.length];
+						for(int i=0;i<msg_bytes.length;i+=1)
+							msg_bytes[i] = (byte)p_msg_int[i].getValue();
+
+						long tick = 0;
+						if(msg_tuple_array[1] instanceof PyLong) {
+							PyLong p_tick_long = (PyLong)msg_tuple_array[1];
+							tick = p_tick_long.getValue().longValue();
+						} else if(msg_tuple_array[1] instanceof PyInteger) {
+							PyInteger p_tick_long = (PyInteger)msg_tuple_array[1];
+							tick = p_tick_long.getValue();
+						} else continue;
+
+						MidiMessage message = null;
+						if(msg_bytes.length >= 2 && (msg_bytes[0]&0xF0) != 0xF0) {
+							ShortMessage short_msg = new ShortMessage(msg_bytes[0]&0xF0, msg_bytes[0]&0xF, msg_bytes[1], msg_bytes.length >= 3 ? msg_bytes[2] : 0);
+							message = short_msg;
+						} else if(msg_bytes.length >= 3 && (msg_bytes[0]&0xFF) == 0xFF) {
+							final int l = msg_bytes[2], type = msg_bytes[1];
+							byte[] data = new byte[l];
+							for(int i=0;i<data.length && i+3<msg_bytes.length;i+=1)
+								data[i] = msg_bytes[i+3];
+
+							MetaMessage meta_msg = new MetaMessage(type, data, l);
+							message = meta_msg;
+						} else if(msg_bytes.length >= 2 && (msg_bytes[0]&0xF0) == 0xF0) {
+							SysexMessage sysex_msg = new SysexMessage(msg_bytes, msg_bytes.length);
+							message = sysex_msg;
+						}
+
+						if(message != null)
+							song_track.add(new MidiEvent(message, tick));
 					}
 				}
 			}

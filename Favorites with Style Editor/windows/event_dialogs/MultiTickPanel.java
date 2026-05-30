@@ -15,7 +15,6 @@ public class MultiTickPanel extends TickPanel {
 
 		JCheckBox checkbox_relative = new JCheckBox("Relative");
 		checkbox_relative.setBounds(130, 60, 100, 35);
-		checkbox_relative.setSelected(true);
 		checkbox_relative.setToolTipText("Check shift the tick by the specified amount. Uncheck to specify the exact tick.");
 		this.add(checkbox_relative);
 
@@ -31,5 +30,7 @@ public class MultiTickPanel extends TickPanel {
 					createSingleSpinner();
 			}
 		});
+
+		checkbox_relative.setSelected(relative);
 	}
 }

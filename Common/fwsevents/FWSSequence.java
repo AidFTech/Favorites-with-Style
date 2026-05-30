@@ -1411,6 +1411,20 @@ public class FWSSequence {
 
 	/** Convert MIDI data to FWS format. */
 	public static FWSSequence getFWSSequencefromSequence(File song_file, JFrame main_window) {
+		try {
+			Sequence loaded_sequence = MidiSystem.getSequence(song_file);
+			return getFWSSequencefromSequence(loaded_sequence);
+		} catch (InvalidMidiDataException e) {
+			JOptionPane.showMessageDialog(main_window, "Invalid or corrupted MIDI data!", "Error", JOptionPane.ERROR_MESSAGE);
+		} catch (IOException e) {
+			
+		}
+
+		return null;
+	}
+
+	/** Convert MIDI data to FWS format. */
+	public static FWSSequence getFWSSequencefromSequence(Sequence loaded_sequence) {
 		//To keep track of which notes are "pressed" and which aren't.
 		boolean notes_on[][] = new boolean[128][16];
 		FWSNoteEvent cache_on[][] = new FWSNoteEvent[128][16];
@@ -1419,237 +1433,229 @@ public class FWSSequence {
 		ArrayList<FWSVoiceEvent> voice_cache = new ArrayList<FWSVoiceEvent>(0);
 		FWSSequence midi_sequence = new FWSSequence();
 		
-		for(int j=0;j<16;j+=1)
-		{
+		for(int j=0;j<16;j+=1) {
 			for(int i=0;i<128;i+=1) {
 				notes_on[i][j] = false;
 				cache_on[i][j] = null;
 			}
 		}
-	
-		try {
-			Sequence loaded_sequence = MidiSystem.getSequence(song_file);
-			Track[] tracks = loaded_sequence.getTracks();
-	
-			midi_sequence.setTPQ(loaded_sequence.getResolution());
-			midi_sequence.setDivType(loaded_sequence.getDivisionType());
-			
-			for(int t=0;t<tracks.length;t+=1) {
-				for(int e=0;e<tracks[t].size();e+=1) {
-					MidiEvent ev = tracks[t].get(e);
-					MidiMessage msg = ev.getMessage();
-	
-					if(msg instanceof ShortMessage) {
-						ShortMessage short_msg = (ShortMessage)msg;
-						if(short_msg.getCommand() == ShortMessage.NOTE_ON && short_msg.getData2() > 0) { //Note depressed.
-							final byte note = (byte)short_msg.getData1(), channel = (byte)short_msg.getChannel(), velocity = (byte)short_msg.getData2();
-							
-							if(notes_on[note][channel]) {
-								notes_on[note][channel] = false;
-	
-								FWSNoteEvent test_note = new FWSNoteEvent();
-								test_note.channel = channel;
-								test_note.note = note;
-								
-								FWSNoteEvent note_ptr = cache_on[note][channel];
-								test_note.velocity = note_ptr.velocity;
-	
-								test_note.tick = note_ptr.tick;
-								test_note.duration = ev.getTick() - note_ptr.tick;
-	
-								cache_on[note][channel] = null;
-								note_cache.remove(note_ptr);
-								midi_sequence.addEvent(test_note);
-							}
-	
+
+		Track[] tracks = loaded_sequence.getTracks();
+
+		midi_sequence.setTPQ(loaded_sequence.getResolution());
+		midi_sequence.setDivType(loaded_sequence.getDivisionType());
+		
+		for(int t=0;t<tracks.length;t+=1) {
+			for(int e=0;e<tracks[t].size();e+=1) {
+				MidiEvent ev = tracks[t].get(e);
+				MidiMessage msg = ev.getMessage();
+
+				if(msg instanceof ShortMessage) {
+					ShortMessage short_msg = (ShortMessage)msg;
+					if(short_msg.getCommand() == ShortMessage.NOTE_ON && short_msg.getData2() > 0) { //Note depressed.
+						final byte note = (byte)short_msg.getData1(), channel = (byte)short_msg.getChannel(), velocity = (byte)short_msg.getData2();
+						
+						if(notes_on[note][channel]) {
+							notes_on[note][channel] = false;
+
 							FWSNoteEvent test_note = new FWSNoteEvent();
-							test_note.note = note;
 							test_note.channel = channel;
-							test_note.velocity = velocity;
-							test_note.tick = ev.getTick();
-	
-							notes_on[note][channel] = true;
-							note_cache.add(test_note);
-							cache_on[note][channel] = test_note;
-						} else if(short_msg.getCommand() == ShortMessage.NOTE_OFF || (short_msg.getCommand() == ShortMessage.NOTE_ON && short_msg.getData2() <= 0)) { //Note released.
-							final byte note = (byte)short_msg.getData1(), channel = (byte)short_msg.getChannel();
+							test_note.note = note;
 							
-							if(notes_on[note][channel]) {
-								notes_on[note][channel] = false;
-	
-								FWSNoteEvent test_note = new FWSNoteEvent();
-								test_note.channel = channel;
-								test_note.note = note;
-								
-								FWSNoteEvent note_ptr = cache_on[note][channel];
-								test_note.velocity = note_ptr.velocity;
-	
-								test_note.tick = note_ptr.tick;
-								test_note.duration = ev.getTick() - note_ptr.tick;
-	
-								cache_on[note][channel] = null;
-								note_cache.remove(note_ptr);
-								midi_sequence.addEvent(test_note);
-							}
-						} else if(short_msg.getCommand() == ShortMessage.PROGRAM_CHANGE) { //Voice change.
-							FWSVoiceEvent voice_event = new FWSVoiceEvent();
-							voice_event.channel = (byte)short_msg.getChannel();
-							voice_event.voice = (byte)short_msg.getData1();
-							voice_event.tick = ev.getTick();
-	
-							FWSShortEvent voice_msb = midi_sequence.getControlEventAt(ev.getTick(), (byte)short_msg.getChannel(), (byte)0),
-											voice_lsb = midi_sequence.getControlEventAt(ev.getTick(), (byte)short_msg.getChannel(), (byte)32);
-	
-							if(voice_msb != null && voice_lsb != null) {
+							FWSNoteEvent note_ptr = cache_on[note][channel];
+							test_note.velocity = note_ptr.velocity;
+
+							test_note.tick = note_ptr.tick;
+							test_note.duration = ev.getTick() - note_ptr.tick;
+
+							cache_on[note][channel] = null;
+							note_cache.remove(note_ptr);
+							midi_sequence.addEvent(test_note);
+						}
+
+						FWSNoteEvent test_note = new FWSNoteEvent();
+						test_note.note = note;
+						test_note.channel = channel;
+						test_note.velocity = velocity;
+						test_note.tick = ev.getTick();
+
+						notes_on[note][channel] = true;
+						note_cache.add(test_note);
+						cache_on[note][channel] = test_note;
+					} else if(short_msg.getCommand() == ShortMessage.NOTE_OFF || (short_msg.getCommand() == ShortMessage.NOTE_ON && short_msg.getData2() <= 0)) { //Note released.
+						final byte note = (byte)short_msg.getData1(), channel = (byte)short_msg.getChannel();
+						
+						if(notes_on[note][channel]) {
+							notes_on[note][channel] = false;
+
+							FWSNoteEvent test_note = new FWSNoteEvent();
+							test_note.channel = channel;
+							test_note.note = note;
+							
+							FWSNoteEvent note_ptr = cache_on[note][channel];
+							test_note.velocity = note_ptr.velocity;
+
+							test_note.tick = note_ptr.tick;
+							test_note.duration = ev.getTick() - note_ptr.tick;
+
+							cache_on[note][channel] = null;
+							note_cache.remove(note_ptr);
+							midi_sequence.addEvent(test_note);
+						}
+					} else if(short_msg.getCommand() == ShortMessage.PROGRAM_CHANGE) { //Voice change.
+						FWSVoiceEvent voice_event = new FWSVoiceEvent();
+						voice_event.channel = (byte)short_msg.getChannel();
+						voice_event.voice = (byte)short_msg.getData1();
+						voice_event.tick = ev.getTick();
+
+						FWSShortEvent voice_msb = midi_sequence.getControlEventAt(ev.getTick(), (byte)short_msg.getChannel(), (byte)0),
+										voice_lsb = midi_sequence.getControlEventAt(ev.getTick(), (byte)short_msg.getChannel(), (byte)32);
+
+						if(voice_msb != null && voice_lsb != null) {
+							voice_event.voice_lsb = voice_lsb.data2;
+							voice_event.voice_msb = voice_msb.data2;
+							midi_sequence.removeEvent(voice_lsb);
+							midi_sequence.removeEvent(voice_msb);
+							midi_sequence.addEvent(voice_event);
+						} else {
+							if(voice_lsb != null) {
 								voice_event.voice_lsb = voice_lsb.data2;
-								voice_event.voice_msb = voice_msb.data2;
 								midi_sequence.removeEvent(voice_lsb);
+							} else
+								voice_event.voice_lsb = -1;
+
+							if(voice_msb != null) {
+								voice_event.voice_msb = voice_msb.data2;
 								midi_sequence.removeEvent(voice_msb);
-								midi_sequence.addEvent(voice_event);
-							} else {
-								if(voice_lsb != null) {
-									voice_event.voice_lsb = voice_lsb.data2;
-									midi_sequence.removeEvent(voice_lsb);
-								} else
-									voice_event.voice_lsb = -1;
-	
-								if(voice_msb != null) {
-									voice_event.voice_msb = voice_msb.data2;
-									midi_sequence.removeEvent(voice_msb);
-								} else
-									voice_event.voice_msb = -1;
-	
-								voice_cache.add(voice_event);
-							}
-	
-						} else { //Other short message.
-							FWSShortEvent short_event = new FWSShortEvent();
-							short_event.channel = (byte)short_msg.getChannel();
-							short_event.command = (byte)short_msg.getCommand();
-							short_event.data1 = (byte)short_msg.getData1();
-							short_event.data2 = (byte)short_msg.getData2();
-							short_event.tick = ev.getTick();
-	
-							FWSVoiceEvent voice_match = null;
-							if(short_msg.getCommand() == ShortMessage.CONTROL_CHANGE && short_msg.getData1() == 0 || short_msg.getData1() == 32) { //Voice change. Match if possible.
-								for(int i=0;i<voice_cache.size();i+=1) {
-									if(voice_cache.get(i).channel == short_event.channel && voice_cache.get(i).tick == short_event.tick) {
-										voice_match = voice_cache.get(i);
-									}
+							} else
+								voice_event.voice_msb = -1;
+
+							voice_cache.add(voice_event);
+						}
+
+					} else { //Other short message.
+						FWSShortEvent short_event = new FWSShortEvent();
+						short_event.channel = (byte)short_msg.getChannel();
+						short_event.command = (byte)short_msg.getCommand();
+						short_event.data1 = (byte)short_msg.getData1();
+						short_event.data2 = (byte)short_msg.getData2();
+						short_event.tick = ev.getTick();
+
+						FWSVoiceEvent voice_match = null;
+						if(short_msg.getCommand() == ShortMessage.CONTROL_CHANGE && short_msg.getData1() == 0 || short_msg.getData1() == 32) { //Voice change. Match if possible.
+							for(int i=0;i<voice_cache.size();i+=1) {
+								if(voice_cache.get(i).channel == short_event.channel && voice_cache.get(i).tick == short_event.tick) {
+									voice_match = voice_cache.get(i);
 								}
 							}
-	
-							if(voice_match != null) {
-								if(short_msg.getData1() == 0)
-									voice_match.voice_msb = (byte)short_msg.getData2();
-								else if(short_msg.getData1() == 32)
-									voice_match.voice_lsb = (byte)short_msg.getData2();
-	
-								if(voice_match.voice_lsb >= 0 && voice_match.voice_msb >= 0) {
-									midi_sequence.addEvent(voice_match);
-									voice_cache.remove(voice_match);
-								}
-							} else 
-								midi_sequence.addEvent(short_event);
 						}
-					} else if(msg instanceof MetaMessage) {
-						MetaMessage meta_msg = (MetaMessage)msg;
-						byte[] meta_data = meta_msg.getData();
-						if(meta_msg.getType() == 0x58) { //Time signature.
-							FWSTimeSignatureEvent time_signature_event = new FWSTimeSignatureEvent();
-							time_signature_event.num = meta_data[0];
-							time_signature_event.den = meta_data[1];
-							time_signature_event.tick = ev.getTick();
-	
-							{
-								FWSTimeSignatureEvent test_event = midi_sequence.getTimeSignatureAt(time_signature_event.tick);
-								if(test_event != null && test_event.tick == time_signature_event.tick)
-									midi_sequence.removeEvent(test_event);
+
+						if(voice_match != null) {
+							if(short_msg.getData1() == 0)
+								voice_match.voice_msb = (byte)short_msg.getData2();
+							else if(short_msg.getData1() == 32)
+								voice_match.voice_lsb = (byte)short_msg.getData2();
+
+							if(voice_match.voice_lsb >= 0 && voice_match.voice_msb >= 0) {
+								midi_sequence.addEvent(voice_match);
+								voice_cache.remove(voice_match);
 							}
-							
-							midi_sequence.addEvent(time_signature_event);
-						} else if(meta_msg.getType() == 0x59) { //Key signature.
-							FWSKeySignatureEvent key_signature_event = new FWSKeySignatureEvent();
-							key_signature_event.accidental_count = meta_data[0];
-							key_signature_event.major = (meta_data[1]&0b1) != 1;
-							key_signature_event.tick = ev.getTick();
-	
-							{
-								FWSKeySignatureEvent test_event = midi_sequence.getKeySignatureAt(key_signature_event.tick);
-								if(test_event != null && test_event.tick == key_signature_event.tick)
-									midi_sequence.removeEvent(test_event);
-							}
-	
-							midi_sequence.addEvent(key_signature_event);
-						} else if(meta_msg.getType() == 0x51) { //Tempo.
-							final float new_tempo = (float)(1.0/(((meta_data[0]&0xFF)*0x10000 +
-									(meta_data[1]&0xFF)*0x100 +
-									meta_data[2])/1E6/60));
-							
-							FWSTempoEvent tempo_event = new FWSTempoEvent();
-							tempo_event.tempo = (int)(new_tempo + 0.5);
-							tempo_event.tick = ev.getTick();
-	
-							{
-								FWSTempoEvent test_event = midi_sequence.getTempoAt(tempo_event.tick);
-								if(test_event != null && test_event.tick == tempo_event.tick)
-									midi_sequence.removeEvent(test_event);
-							}
-	
-							midi_sequence.addEvent(tempo_event);
-						} else { //Misc MIDI.
-							FWSMiscMIDIEvent midi_event = new FWSMiscMIDIEvent();
-	
-							midi_event.type = meta_msg.getType();
-	
-							midi_event.data = meta_data;
-							midi_event.tick = ev.getTick();
-							
-							if(meta_data.length == 0 && meta_msg.getType() == 0x2F) { //End event.
-								FWSEvent end_event = midi_sequence.getEndEvent();
-								if(end_event != null)
-									midi_sequence.removeEvent(end_event);
-							}
-	
-							midi_sequence.addEvent(midi_event);
-						}
-					} else if(msg instanceof SysexMessage) {
-						SysexMessage sysex_msg = (SysexMessage)msg;
-	
-						FWSSysexEvent sysex_event = new FWSSysexEvent();
-						sysex_event.data = sysex_msg.getData();
-						sysex_event.status = sysex_msg.getStatus();
-	
-						sysex_event.tick = ev.getTick();
-	
-						midi_sequence.addEvent(sysex_event);
+						} else 
+							midi_sequence.addEvent(short_event);
 					}
+				} else if(msg instanceof MetaMessage) {
+					MetaMessage meta_msg = (MetaMessage)msg;
+					byte[] meta_data = meta_msg.getData();
+					if(meta_msg.getType() == 0x58) { //Time signature.
+						FWSTimeSignatureEvent time_signature_event = new FWSTimeSignatureEvent();
+						time_signature_event.num = meta_data[0];
+						time_signature_event.den = meta_data[1];
+						time_signature_event.tick = ev.getTick();
+
+						{
+							FWSTimeSignatureEvent test_event = midi_sequence.getTimeSignatureAt(time_signature_event.tick);
+							if(test_event != null && test_event.tick == time_signature_event.tick)
+								midi_sequence.removeEvent(test_event);
+						}
+						
+						midi_sequence.addEvent(time_signature_event);
+					} else if(meta_msg.getType() == 0x59) { //Key signature.
+						FWSKeySignatureEvent key_signature_event = new FWSKeySignatureEvent();
+						key_signature_event.accidental_count = meta_data[0];
+						key_signature_event.major = (meta_data[1]&0b1) != 1;
+						key_signature_event.tick = ev.getTick();
+
+						{
+							FWSKeySignatureEvent test_event = midi_sequence.getKeySignatureAt(key_signature_event.tick);
+							if(test_event != null && test_event.tick == key_signature_event.tick)
+								midi_sequence.removeEvent(test_event);
+						}
+
+						midi_sequence.addEvent(key_signature_event);
+					} else if(meta_msg.getType() == 0x51) { //Tempo.
+						final float new_tempo = (float)(1.0/(((meta_data[0]&0xFF)*0x10000 +
+								(meta_data[1]&0xFF)*0x100 +
+								meta_data[2])/1E6/60));
+						
+						FWSTempoEvent tempo_event = new FWSTempoEvent();
+						tempo_event.tempo = (int)(new_tempo + 0.5);
+						tempo_event.tick = ev.getTick();
+
+						{
+							FWSTempoEvent test_event = midi_sequence.getTempoAt(tempo_event.tick);
+							if(test_event != null && test_event.tick == tempo_event.tick)
+								midi_sequence.removeEvent(test_event);
+						}
+
+						midi_sequence.addEvent(tempo_event);
+					} else { //Misc MIDI.
+						FWSMiscMIDIEvent midi_event = new FWSMiscMIDIEvent();
+
+						midi_event.type = meta_msg.getType();
+
+						midi_event.data = meta_data;
+						midi_event.tick = ev.getTick();
+						
+						if(meta_data.length == 0 && meta_msg.getType() == 0x2F) { //End event.
+							FWSEvent end_event = midi_sequence.getEndEvent();
+							if(end_event != null)
+								midi_sequence.removeEvent(end_event);
+						}
+
+						midi_sequence.addEvent(midi_event);
+					}
+				} else if(msg instanceof SysexMessage) {
+					SysexMessage sysex_msg = (SysexMessage)msg;
+
+					FWSSysexEvent sysex_event = new FWSSysexEvent();
+					sysex_event.data = sysex_msg.getData();
+					sysex_event.status = sysex_msg.getStatus();
+
+					sysex_event.tick = ev.getTick();
+
+					midi_sequence.addEvent(sysex_event);
 				}
 			}
-	
-			for(int i=0;i<voice_cache.size();i+=1) {
-				FWSVoiceEvent voice_event = voice_cache.get(i);
-				
-				if(voice_event.voice_lsb < 0)
-					voice_event.voice_lsb = 0;
-				if(voice_event.voice_msb < 0)
-					voice_event.voice_msb = (byte)(voice_event.channel == 9 ? 127 : 0);
-	
-				midi_sequence.addEvent(voice_event);
-			}
-	
-			if(midi_sequence.getEndEvent() == null) {
-				midi_sequence.setEndEvent(midi_sequence.getSequenceLength());
-			} else {
-				if(midi_sequence.getEndEvent().tick < midi_sequence.getSequenceLength())
-					midi_sequence.setEndEvent(midi_sequence.getSequenceLength());
-			}
-	
-		} catch (InvalidMidiDataException e) {
-			JOptionPane.showMessageDialog(main_window, "Invalid or corrupted MIDI data!", "Error", JOptionPane.ERROR_MESSAGE);
-		} catch(IOException e) {
-	
 		}
+
+		for(int i=0;i<voice_cache.size();i+=1) {
+			FWSVoiceEvent voice_event = voice_cache.get(i);
+			
+			if(voice_event.voice_lsb < 0)
+				voice_event.voice_lsb = 0;
+			if(voice_event.voice_msb < 0)
+				voice_event.voice_msb = (byte)(voice_event.channel == 9 ? 127 : 0);
+
+			midi_sequence.addEvent(voice_event);
+		}
+
+		if(midi_sequence.getEndEvent() == null) {
+			midi_sequence.setEndEvent(midi_sequence.getSequenceLength());
+		} else {
+			if(midi_sequence.getEndEvent().tick < midi_sequence.getSequenceLength())
+				midi_sequence.setEndEvent(midi_sequence.getSequenceLength());
+		}
+
 		
 		return midi_sequence;
 	}

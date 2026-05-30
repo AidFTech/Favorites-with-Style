@@ -44,7 +44,7 @@ public abstract class TickPanel extends JPanel {
 
 		this.relative = relative;
 
-		this.current_tick = relative ? 0 : initial_tick;
+		this.current_tick = initial_tick;
 		this.initial_tick = initial_tick;
 		setLayout(null);
 
@@ -319,7 +319,9 @@ public abstract class TickPanel extends JPanel {
 		if(start_beat < 0)
 			return;
 
-		start_beat += (Integer)spinner_beat.getValue();
+		final int init_beat = parent_sequence.getBeatAt(initial_tick);
+
+		start_beat += init_beat + (Integer)spinner_beat.getValue();
 		if(start_beat < 0)
 			start_beat = 0;
 		if(start_beat >= beat_ticks.length)
@@ -341,6 +343,9 @@ public abstract class TickPanel extends JPanel {
 
 	/** Get the set tick. */
 	public long getSetTick() {
-		return this.current_tick;
+		if(!relative)
+			return this.current_tick;
+		else
+			return this.current_tick - this.initial_tick;
 	}
 }
