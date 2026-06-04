@@ -380,7 +380,8 @@ public class SongSubstitutionsWindow extends JDialog {
 				InstrumentProfile profile_obj = controller.getInstrumentProfile(profile);
 				populateVoiceDropdown(dropdown_voice, profile_obj, (String)dropdown_instrument.getSelectedItem());
 
-				list_songvoice.setSelectedIndex(-1);
+				list_songvoice.clearSelection();
+				populateAlternateVoiceList(null, list_subvoice);
 			}
 		});
 
