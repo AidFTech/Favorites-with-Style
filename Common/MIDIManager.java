@@ -240,8 +240,12 @@ public class MIDIManager {
 		
 		if(active_profile != null && active_profile.getReset())
 			start_options.addResetMessages();
+
+		String output_profile = controller.getOutputProfileName();
+		if(output_profile == null || output_profile.isEmpty())
+			output_profile = controller.getInstrumentProfileName();
 		
-		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(output_profile), song.getTargetProfile(), song.getTargetInstrument());
 
 		//Get the interpreter.
 		PythonInterpreter interpreter = null;
@@ -387,7 +391,11 @@ public class MIDIManager {
 
 		player_options.chord_part = false;
 
-		start_options.substitutions = getSubstitutionMap(sequence.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+		String output_profile = controller.getOutputProfileName();
+		if(output_profile == null || output_profile.isEmpty())
+			output_profile = controller.getInstrumentProfileName();
+
+		start_options.substitutions = getSubstitutionMap(sequence.getAllVoices(), song.getSubstitutions(output_profile), song.getTargetProfile(), song.getTargetInstrument());
 
 		this.playSequenceJNI(sequence, start_options);
 	}
@@ -410,9 +418,13 @@ public class MIDIManager {
 		
 		if(active_profile != null && active_profile.getReset())
 			start_options.addResetMessages();
+
+		String output_profile = controller.getOutputProfileName();
+		if(output_profile == null || output_profile.isEmpty())
+			output_profile = controller.getInstrumentProfileName();
 		
 		player_options.chord_part = false;
-		start_options.substitutions = getSubstitutionMap(style.getFullSequence().getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+		start_options.substitutions = getSubstitutionMap(style.getFullSequence().getAllVoices(), song.getSubstitutions(output_profile), song.getTargetProfile(), song.getTargetInstrument());
 
 		this.playStyleJNI(style, start_options);
 	}
@@ -673,8 +685,12 @@ public class MIDIManager {
 		ArrayList<byte[]> events = new ArrayList<>(0);
 		ArrayList<Long> ticks = new ArrayList<>(0);
 
+		String output_profile = controller.getOutputProfileName();
+		if(output_profile == null)
+			output_profile = controller.getInstrumentProfileName();
+
 		MIDIStartOptions start_options = new MIDIStartOptions();
-		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(), song.getTargetProfile(), song.getTargetInstrument());
+		start_options.substitutions = getSubstitutionMap(song.getAllVoices(), song.getSubstitutions(output_profile), song.getTargetProfile(), song.getTargetInstrument());
 
 		calculateSongMidiEvents(song, export_options, start_options, events, ticks);
 

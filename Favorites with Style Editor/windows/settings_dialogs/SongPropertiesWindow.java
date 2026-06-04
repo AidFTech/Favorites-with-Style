@@ -4,6 +4,7 @@ import javax.swing.JDialog;
 
 import main_window.FWSEditorMainWindow;
 import options.MIDIPlayerOptions;
+import song.FWSSong;
 import song.FWSSongMetadata;
 import voices.InstrumentProfile;
 
@@ -27,8 +28,10 @@ import javax.swing.JComboBox;
 public class SongPropertiesWindow extends JDialog {
 	private static final long serialVersionUID = -3952506437951462952L;
 
-	public SongPropertiesWindow(FWSEditorMainWindow parent, FWSSongMetadata song_metadata) {
+	public SongPropertiesWindow(FWSEditorMainWindow parent, FWSSong song) {
 		super(parent, true);
+
+		FWSSongMetadata song_metadata = song.getSongMetadata();
 
 		this.setTitle("Song Properties");
 		this.setType(Type.UTILITY);
@@ -237,11 +240,21 @@ public class SongPropertiesWindow extends JDialog {
 			}
 		});
 		getContentPane().add(button_apply);
+		
+		JButton button_substitutions = new JButton("Substitutions");
+		button_substitutions.setBounds(12, 463, 143, 31);
+		button_substitutions.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new SongSubstitutionsWindow(parent, self, song);
+			}
+		});
+		getContentPane().add(button_substitutions);
 
 		this.setVisible(true);
 	}
 
-	/** Refresh the isntrument menu. */
+	/** Refresh the instrument menu. */
 	private void refreshInstrumentMenu(JComboBox<String> instrument_dropdown, InstrumentProfile target_profile) {
 		instrument_dropdown.removeAllItems();
 

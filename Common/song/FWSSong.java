@@ -26,7 +26,7 @@ public class FWSSong {
 
 	private Map<String, Style> styles = new LinkedHashMap<>();
 
-	private SequenceSubstitution[] substitutions = new SequenceSubstitution[0];
+	private Map<String, SequenceSubstitution[]> substitutions = new LinkedHashMap<>();
 
 	public FWSSong() {
 		song_sequence = new FWSSequence();
@@ -45,16 +45,38 @@ public class FWSSong {
 		return this.song_metadata;
 	}
 
-	/** Get the list of voice substitutions. */
-	public SequenceSubstitution[] getSubstitutions() {
-		return this.substitutions;
+	/** Get the list of voice substitutions for the specified profile. */
+	public SequenceSubstitution[] getSubstitutions(String profile) {
+		if(this.substitutions.get(profile) == null)
+			return new SequenceSubstitution[0];
+
+		return this.substitutions.get(profile);
 	}
 
-	/** Set the substitution list. */
-	public void setSubstitutions(SequenceSubstitution[] substitutions) {
-		this.substitutions = new SequenceSubstitution[substitutions.length];
+	/** Add a substitution list. */
+	public void addSubstitutionList(String profile, SequenceSubstitution[] substitutions) {
+		SequenceSubstitution[] new_substitutions = new SequenceSubstitution[substitutions.length];
 		for(int i=0;i<substitutions.length;i+=1)
-			this.substitutions[i] = substitutions[i];
+			new_substitutions[i] = substitutions[i];
+		
+		this.substitutions.put(profile, new_substitutions);
+	}
+
+	/** Remove the substitution list from the profile. */
+	public void removeSubstitutionList(String profile) {
+		substitutions.remove(profile);
+	}
+
+	/** Get the list of substitution profiles. */
+	public String[] getSubstitutionProfileList() {
+		ArrayList<String> name_list = new ArrayList<String>();
+		for(Entry<String, SequenceSubstitution[]> name: substitutions.entrySet()) {
+			name_list.add(name.getKey());
+		}
+
+		String[] names = new String[name_list.size()];
+		name_list.toArray(names);
+		return names;
 	}
 
 	/** Add a style to the list. */

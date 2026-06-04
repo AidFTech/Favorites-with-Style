@@ -195,4 +195,14 @@ public final class Voice {
 
 		return null;
 	}
+
+	/** Match a voice from a list. */
+	public static Voice matchVoice(Voice[] voice_list, String voice_name) {
+		for(Voice voice: voice_list) {
+			if(voice.name.equalsIgnoreCase(voice_name))
+				return voice;
+		}
+
+		return null;
+	}
 }

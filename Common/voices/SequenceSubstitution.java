@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 public class SequenceSubstitution {
 	private final Voice original;
-	private Voice[] alternates;
+	private Voice[] alternates = new Voice[0];
 
 	public SequenceSubstitution(Voice original) {
 		this.original = original;

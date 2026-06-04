@@ -50,6 +50,7 @@ import style.ChordBody;
 import style.Style;
 import voices.InstrumentProfile;
 import voices.ProfileSubstitution;
+import voices.SequenceSubstitution;
 import voices.Voice;
 
 public class SaveLoadController {
@@ -294,6 +295,11 @@ public class SaveLoadController {
 			FileOutputStream meta_file = new FileOutputStream(tmp_dir + "/song.xml");
 			getSongInfoXML(song, meta_file);
 
+			if(song.getSubstitutionProfileList().length > 0) {
+				FileOutputStream sub_file = new FileOutputStream(tmp_dir + "/subs.xml");
+				getSubsXML(song, sub_file);
+			}
+
 			//Create the ZIP:
 			FileOutputStream song_file_output = new FileOutputStream(song_file);
 			ZipOutputStream zip_out = new ZipOutputStream(song_file_output);
@@ -366,6 +372,8 @@ public class SaveLoadController {
 				loadSongInfoXML(song, song_files[i]);
 			} else if(song_files[i].getName().equalsIgnoreCase("ACC.XML")) { //Chords and style changes.
 				loadChordInfoXML(song, song_files[i]);
+			} else if(song_files[i].getName().equalsIgnoreCase("SUBS.XML")) { //Substitutions.
+				loadSubsXML(song, song_files[i]);
 			}
 		}
 	}
@@ -723,7 +731,7 @@ public class SaveLoadController {
 
 		String default_path = save_file.getParent();
 		
-		if(default_path != null)
+		if(default_path != null && !default_path.contains("./fwstmp"))
 			this.last_filepath = save_file.getParent();
 	}
 
@@ -856,6 +864,53 @@ public class SaveLoadController {
 		Element instrument = song_doc.createElement("Instrument");
 		instrument.appendChild(song_doc.createTextNode(metadata.target_instrument));
 		root_element.appendChild(instrument);
+
+		TransformerFactory transformer_factory = TransformerFactory.newInstance();
+		Transformer transformer = transformer_factory.newTransformer();
+
+		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+		DOMSource source = new DOMSource(song_doc);
+		StreamResult result = new StreamResult(output);
+
+		transformer.transform(source, result);
+	}
+
+	/** Get an XML from song substitutions. */
+	private static void getSubsXML(FWSSong song, OutputStream output) throws ParserConfigurationException, TransformerException {
+		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder doc_builder = doc_factory.newDocumentBuilder();
+
+		Document song_doc = doc_builder.newDocument();
+		Element root_element = song_doc.createElement("Substitutions");
+		song_doc.appendChild(root_element);
+		
+		String[] sub_profiles = song.getSubstitutionProfileList();
+		for(String sub_profile: sub_profiles) {
+			SequenceSubstitution[] subs = song.getSubstitutions(sub_profile);
+			if(subs == null)
+				continue;
+
+			Element profile = song_doc.createElement(sub_profile.replace(' ', '_'));
+			root_element.appendChild(profile);
+
+			for(SequenceSubstitution sub: subs) {
+				Voice original_voice = sub.getVoice();
+
+				Element substitution_list = song_doc.createElement("Substitution");
+				profile.appendChild(substitution_list);
+
+				Element original_voice_xml = song_doc.createElement("Original");
+				original_voice_xml.setTextContent(Integer.toString((original_voice.msb<<16) | (original_voice.lsb << 8) | original_voice.voice));
+				substitution_list.appendChild(original_voice_xml);
+
+				Voice[] alternates = sub.getAlternates();
+				for(Voice alternate: alternates) {
+					Element alternate_xml = song_doc.createElement("Alternate");
+					alternate_xml.setTextContent(Integer.toString((alternate.msb << 16) | (alternate.lsb << 8) | alternate.voice));
+					substitution_list.appendChild(alternate_xml);
+				}
+			}
+		}
 
 		TransformerFactory transformer_factory = TransformerFactory.newInstance();
 		Transformer transformer = transformer_factory.newTransformer();
@@ -1006,6 +1061,87 @@ public class SaveLoadController {
 
 		for(int i=0;i<change_events.size();i+=1)
 			song.getSongSequence().addEvent(change_events.get(i));
+	}
+
+	/** Get song substitutions from an XML. */
+	private static void loadSubsXML(FWSSong song, File input) throws ParserConfigurationException, SAXException, IOException {
+		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder doc_builder = doc_factory.newDocumentBuilder();
+
+		Document sub_doc = doc_builder.parse(input);
+		sub_doc.getDocumentElement().normalize();
+
+		Element root = sub_doc.getDocumentElement();
+
+		NodeList sub_nodes = root.getChildNodes();
+		final int len = sub_nodes.getLength();
+
+		for(int i=0;i<len;i+=1) {
+			String profile = "";
+			ArrayList<SequenceSubstitution> sub_vec = new ArrayList<>();
+
+			Node item = sub_nodes.item(i);
+			if(item.getNodeType() == Node.ELEMENT_NODE) {
+				profile = item.getNodeName().replace('_', ' ');
+				Element element = (Element)item;
+
+				NodeList profile_sub_nodes = element.getChildNodes();
+				final int plen = profile_sub_nodes.getLength();
+
+				for(int j=0;j<plen;j+=1) {
+					Node p_item = profile_sub_nodes.item(j);
+					
+					if(p_item == null)
+						continue;
+					
+					if(p_item.getNodeType() == Node.ELEMENT_NODE) {
+						Element p_element = (Element)p_item;
+						if(p_item.getNodeName().equalsIgnoreCase("SUBSTITUTION")) {
+							Voice original = null;
+							ArrayList<Voice> alternates = new ArrayList<>();
+
+							NodeList sub_list = p_element.getChildNodes();
+							final int slen = sub_list.getLength();
+
+							for(int s=0;s<slen;s+=1) {
+								Node s_item = sub_list.item(s);
+
+								if(s_item == null)
+									continue;
+
+								if(s_item.getNodeType() == Node.ELEMENT_NODE) {
+									Element s_element = (Element)s_item;
+									if(s_item.getNodeName().equalsIgnoreCase("ORIGINAL")) {
+										final int original_int = Integer.parseInt(s_element.getTextContent());
+										original = new Voice("", (byte)(original_int&0xFF),
+																(byte)((original_int>>8)&0xFF),
+																(byte)((original_int>>16)&0xFF));
+									} else if(s_item.getNodeName().equalsIgnoreCase("ALTERNATE")) {
+										final int voice_int = Integer.parseInt(s_element.getTextContent());
+										alternates.add(new Voice("", (byte)(voice_int&0xFF),
+																(byte)((voice_int>>8)&0xFF),
+																(byte)((voice_int>>16)&0xFF)));
+									}
+								}
+							}
+
+							if(original == null)
+								continue;
+
+							sub_vec.add(new SequenceSubstitution(original, alternates));
+						}
+					}
+				}
+			}
+
+			if(profile.isEmpty())
+				continue;
+
+			SequenceSubstitution[] subs = new SequenceSubstitution[sub_vec.size()];
+			sub_vec.toArray(subs);
+
+			song.addSubstitutionList(profile, subs);
+		}
 	}
 
 	/** Get profile substitutions from a file. */

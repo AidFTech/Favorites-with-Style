@@ -225,7 +225,7 @@ public class FWSEditorMainWindow extends JFrame {
 		JMenuItem menu_item_song_properties = new JMenuItem("Song Properties");
 		menu_item_song_properties.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				new SongPropertiesWindow(self, controller.getLoadedSong().getSongMetadata());
+				new SongPropertiesWindow(self, controller.getLoadedSong());
 			}
 		});
 		menu_song.add(menu_item_song_properties);
