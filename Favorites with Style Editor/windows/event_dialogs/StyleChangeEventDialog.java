@@ -29,6 +29,8 @@ public class StyleChangeEventDialog extends JDialog {
 	private static final long serialVersionUID = 2100513605103956171L;
 	private final JLabel label_style = new JLabel("Style");
 
+	private StyleTickPanel style_tick_panel;
+
 	public StyleChangeEventDialog(FWSEditorMainWindow parent, FWSStyleChangeEvent fws_event) {
 		super(parent, true);
 
@@ -147,9 +149,11 @@ public class StyleChangeEventDialog extends JDialog {
 				style_sequence = new_style.getSection((String)section_dropdown.getSelectedItem());
 		}
 
-		StyleTickPanel style_tick_panel = new StyleTickPanel(parent, style_sequence, fws_event.style_tick, 12, 432, 326, 100);
-		style_tick_panel.setBounds(12, 434, 326, 100);
-		getContentPane().add(style_tick_panel);
+		if(style_sequence != null) {
+			style_tick_panel = new StyleTickPanel(parent, style_sequence, fws_event.style_tick, 12, 432, 326, 100);
+			style_tick_panel.setBounds(12, 434, 326, 100);
+			getContentPane().add(style_tick_panel);
+		}
 
 		section_dropdown.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -162,10 +166,15 @@ public class StyleChangeEventDialog extends JDialog {
 
 				FWSSequence style_sequence = new_style.getSection((String)section_dropdown.getSelectedItem());
 
-				if(style_sequence != null)
+				if(style_tick_panel == null && style_sequence != null) {
+					style_tick_panel = new StyleTickPanel(parent, style_sequence, fws_event.style_tick, 12, 432, 326, 100);
+					style_tick_panel.setBounds(12, 434, 326, 100);
+					getContentPane().add(style_tick_panel);
+				} else if(style_sequence != null)
 					style_tick_panel.setSequence(style_sequence);
 
-				style_tick_panel.setRetainTick(false);
+				if(style_tick_panel != null)
+					style_tick_panel.setRetainTick(false);
 			}
 		});
 
@@ -225,7 +234,8 @@ public class StyleChangeEventDialog extends JDialog {
 					fws_event.section_name = "";
 				}
 
-				fws_event.style_tick = style_tick_panel.getSetTick();
+				if(style_tick_panel != null)
+					fws_event.style_tick = style_tick_panel.getSetTick();
 				
 				fws_event.sub_rhythm = checkbox_subrhythm.isSelected();
 				fws_event.rhythm = checkbox_main_rhythm.isSelected();
