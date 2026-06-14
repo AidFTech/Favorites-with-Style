@@ -13,6 +13,8 @@ import canvas.SongViewPort;
 import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
 import main_window.FWSEditorMainWindow;
+import sprites.Sprite;
+
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ChangeEvent;
 import javax.swing.JComboBox;
@@ -177,6 +179,9 @@ public class NoteEventDialog extends JDialog {
 				FWSSequence sequence = vp.getActiveSequence();
 
 				final boolean replace = sequence.getEvent(fws_event);
+
+				Sprite sprite = vp.getEventSprite(fws_event);
+				sprite.deselect();
 								
 				fws_event.note = ((Integer)spinner_note.getValue()).byteValue();
 				fws_event.velocity = ((Integer)spinner_velocity.getValue()).byteValue();

@@ -3,8 +3,10 @@ package sprites;
 import java.awt.Color;
 import java.awt.Graphics;
 
+import canvas.SongViewPort;
 import event_dialogs.ChordEventDialog;
 import fwsevents.FWSChordEvent;
+import infobox.InfoBox;
 
 public class SpriteChordEvent extends Sprite {
 	private static final long serialVersionUID = -2170907281285894024L;
@@ -40,5 +42,38 @@ public class SpriteChordEvent extends Sprite {
 	@Override
 	public void createDialog() {
 		new ChordEventDialog(getViewport().getMainWindow(), (FWSChordEvent)affected_event);
+	}
+
+	@Override
+	public void select() {
+		super.select();
+
+		SongViewPort vp = getViewport();
+
+		if(vp.getSpritesLocked())
+			return;
+
+		InfoBox info_box = vp.getController().getMidiManager().getPlayerOptions().info_display;
+
+		FWSChordEvent affected_event = (FWSChordEvent)this.affected_event;
+
+		final byte main_root = affected_event.main_chord.getFullRoot(), main_chord = affected_event.main_chord.getChord();
+		final byte bass_root = affected_event.bass_chord.getFullRoot(), bass_chord = affected_event.bass_chord.getChord();
+
+		info_box.refreshChord(main_root, main_chord, bass_root, bass_chord, affected_event.inversion, (byte)0);
+	}
+
+	@Override
+	public void deselect() {
+		super.deselect();
+
+		SongViewPort vp = getViewport();
+
+		if(vp.getSpritesLocked())
+			return;
+
+		InfoBox info_box = vp.getController().getMidiManager().getPlayerOptions().info_display;
+
+		info_box.clearChord();
 	}
 }

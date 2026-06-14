@@ -49,7 +49,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -109,6 +108,9 @@ public class FWSEditorMainWindow extends JFrame {
 		this.getContentPane().setLayout(null);
 		this.setLocationRelativeTo(null);
 
+		String os = System.getProperty("os.name").toUpperCase();
+		final int ctrl_accelerator = os.contains("MAC") ? KeyEvent.META_DOWN_MASK : KeyEvent.CTRL_DOWN_MASK;
+
 		this.controller = controller;
 		FWSEditorMainWindow self = this;
 		
@@ -121,7 +123,7 @@ public class FWSEditorMainWindow extends JFrame {
 
 		JMenuItem menu_item_new = new JMenuItem("New");
 		menu_item_new.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/menu_new.png")));
-		menu_item_new.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, KeyEvent.CTRL_DOWN_MASK));
+		menu_item_new.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, ctrl_accelerator));
 		menu_item_new.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -138,7 +140,7 @@ public class FWSEditorMainWindow extends JFrame {
 
 		JMenuItem menu_item_load = new JMenuItem("Open");
 		menu_item_load.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/menu_open.png")));
-		menu_item_load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, KeyEvent.CTRL_DOWN_MASK)); //TODO: Different accelerator for Mac?
+		menu_item_load.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_O, ctrl_accelerator));
 		menu_item_load.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -155,7 +157,7 @@ public class FWSEditorMainWindow extends JFrame {
 		
 		JMenuItem menu_item_save = new JMenuItem("Save");
 		menu_item_save.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/menu_save.png")));
-		menu_item_save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_DOWN_MASK)); //TODO: Different accelerator for Mac?
+		menu_item_save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ctrl_accelerator));
 		menu_item_save.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -165,7 +167,7 @@ public class FWSEditorMainWindow extends JFrame {
 		menu_file.add(menu_item_save);
 
 		JMenuItem menu_item_save_as = new JMenuItem("Save As");
-		menu_item_save_as.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, KeyEvent.CTRL_DOWN_MASK | KeyEvent.SHIFT_DOWN_MASK)); //TODO: Different accelerator for Mac?
+		menu_item_save_as.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ctrl_accelerator | KeyEvent.SHIFT_DOWN_MASK)); //TODO: Different accelerator for Mac?
 		menu_item_save_as.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -199,6 +201,25 @@ public class FWSEditorMainWindow extends JFrame {
 			}
 		});
 		menu_file.add(menu_item_export_midi);
+
+		JMenu menu_edit = new JMenu("Edit");
+		main_menu_bar.add(menu_edit);
+
+		JMenuItem menu_item_cut = new JMenuItem("Cut");
+		menu_item_cut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ctrl_accelerator));
+		menu_edit.add(menu_item_cut);
+
+		JMenuItem menu_item_copy = new JMenuItem("Copy");
+		menu_item_copy.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, ctrl_accelerator));
+		menu_edit.add(menu_item_copy);
+
+		JMenuItem menu_item_paste = new JMenuItem("Paste");
+		menu_item_paste.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, ctrl_accelerator));
+		menu_edit.add(menu_item_paste);
+
+		JMenuItem menu_item_delete = new JMenuItem("Delete");
+		menu_item_delete.setAccelerator(KeyStroke.getKeyStroke((char)KeyEvent.VK_DELETE));
+		menu_edit.add(menu_item_delete);
 
 		JMenu menu_song = new JMenu("Song/Sequence");
 		main_menu_bar.add(menu_song);
@@ -562,6 +583,30 @@ public class FWSEditorMainWindow extends JFrame {
 		song_viewport.fill(controller.getActiveSequence(), false);
 		song_viewport.refresh();
 
+		menu_item_copy.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.copySelected(false);	
+			}
+		});
+
+		menu_item_cut.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.copySelected(false);
+				song_viewport.deleteSelectedSprites(false);
+				song_viewport.refresh();
+			}
+		});
+
+		menu_item_delete.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.deleteSelectedSprites(false);
+				song_viewport.refresh();
+			}
+		});
+
 		menu_item_initial_voices.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -844,24 +889,6 @@ public class FWSEditorMainWindow extends JFrame {
 		
 		song_viewport.setSize(new Dimension(self.getContentPane().getWidth() - song_pane_to_edge_x, self.getContentPane().getHeight() - song_pane_to_edge_y));
 		song_viewport.resetScrollBars();
-
-		this.addKeyListener(new KeyListener() {
-			@Override
-			public void keyTyped(KeyEvent e) {
-			}
-
-			@Override
-			public void keyPressed(KeyEvent e) {
-				if(e.getKeyCode() == KeyEvent.VK_DELETE) {
-					song_viewport.deleteSelectedSprites();
-					song_viewport.refresh();
-				}
-			}
-
-			@Override
-			public void keyReleased(KeyEvent e) {
-			}
-		});
 		
 		button_play.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {

@@ -20,6 +20,8 @@ import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSectionNameEvent;
 import fwsevents.FWSSequence;
 import fwsevents.FWSTimeSignatureEvent;
+import infobox.InfoBox;
+import options.MIDIPlayerOptions;
 
 public abstract class Sprite extends JPanel {
 	private static final long serialVersionUID = -9178657772123646464L;
@@ -283,7 +285,20 @@ public abstract class Sprite extends JPanel {
 				y = 0;
 			if(y >= 128*FWS.event_height)
 				y = 127*FWS.event_height;
+
+			final byte last_note = note_event.note;
 			note_event.note = (byte)(127 - y/FWS.event_height);
+		
+			SongViewPort vp = getViewport();
+			MIDIPlayerOptions options = vp.getController().getMidiManager().getPlayerOptions();
+		
+			InfoBox info_box = options.info_display;
+			final byte rh = options.song_melody_rh, lh = options.song_melody_lh;
+
+			if(note_event.channel == rh || note_event.channel == lh) {
+				info_box.refreshMelody(last_note, false);
+				info_box.refreshMelody(note_event.note, true);
+			}
 		}
 
 		getViewport().refreshFull();

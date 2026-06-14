@@ -451,5 +451,6 @@ public class ChordBody {
 	/** Set the chord. */
 	public void setChord(final byte chord) {
 		this.chord = chord;
+		refresh();
 	}
 }

@@ -7,7 +7,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -19,7 +18,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JViewport;
-import javax.swing.KeyStroke;
 import javax.swing.Timer;
 
 import controllers.FWS;
@@ -70,7 +68,7 @@ public class SongViewPort extends JScrollPane {
 	private FWSSequence active_sequence;
 	protected InfoBox info_box;
 
-	private boolean sprites_locked = false;
+	private boolean sprites_locked = false, playing = false;
 
 	private int channel_selected = 0, snap;
 	
@@ -80,6 +78,8 @@ public class SongViewPort extends JScrollPane {
 
 	private JPopupMenu popup_menu;
 	private Component last_popup; //The last component to trigger the popup menu.
+
+	private ArrayList<FWSEvent> clipboard = new ArrayList<>();
 
 	private CanvasOptionGroup canvas_options;
 
@@ -104,7 +104,16 @@ public class SongViewPort extends JScrollPane {
 			public void actionPerformed(ActionEvent e) {
 				MIDIPlayerOptions player_options = controller.getMidiManager().getPlayerOptions();
 				
+				final boolean last_playing = playing;
+
 				sprites_locked = player_options.play;
+				playing = player_options.play;
+
+				if(playing != last_playing) {
+					Sprite[] sprites = getSprites();
+					for(Sprite sprite: sprites)
+						sprite.deselect();
+				}
 				
 				if(player_options.play && main_window.getDisplayMode() != DisplayMode.DISPLAY_MODE_STYLE) {
 					final long tick = player_options.current_tick, length = controller.getActiveSequence().getSequenceLength();
@@ -142,20 +151,38 @@ public class SongViewPort extends JScrollPane {
 		popup_menu = new JPopupMenu();
 
 		JMenuItem menu_item_cut = new JMenuItem("Cut");
-		menu_item_cut.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, KeyEvent.CTRL_DOWN_MASK));
+		menu_item_cut.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				copySelected();
+				deleteSelectedSprites();
+				refresh();
+			}
+		});
 		popup_menu.add(menu_item_cut);
 
 		JMenuItem menu_item_copy = new JMenuItem("Copy");
-		menu_item_copy.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, KeyEvent.CTRL_DOWN_MASK));
+		menu_item_copy.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				copySelected();
+			}
+		});
 		popup_menu.add(menu_item_copy);
 
 		JMenuItem menu_item_paste = new JMenuItem("Paste");
-		menu_item_paste.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, KeyEvent.CTRL_DOWN_MASK));
 		popup_menu.add(menu_item_paste);
 
 		popup_menu.addSeparator();
 
 		JMenuItem menu_item_delete = new JMenuItem("Delete");
+		menu_item_delete.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				deleteSelectedSprites();
+				refresh();
+			}
+		});
 		popup_menu.add(menu_item_delete);
 
 		popup_menu.addSeparator();
@@ -164,81 +191,7 @@ public class SongViewPort extends JScrollPane {
 		menu_item_properties.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				Sprite[] sprites = getSprites();
-				ArrayList<Sprite> selected = new ArrayList<>();
-				
-				for(int i=0;i<sprites.length;i+=1) {
-					if(sprites[i].getSelected())
-						selected.add(sprites[i]);
-				}
-
-				if(selected.size() <= 0) {
-					if(last_popup instanceof Sprite)
-						selected.add((Sprite)last_popup);
-				}
-
-				if(selected.size() == 1) {
-					Sprite sprite = selected.get(0);
-					sprite.createDialog();
-				} else if(selected.size() > 1) {
-					Class<?> selection_class = selected.get(0).getClass();
-					boolean generic = false, channeled = true;;
-
-					for(int i=0;i<selected.size();i+=1) {
-						if(selected.get(i).getClass() != selection_class) {
-							generic = true;
-							break;
-						}
-					}
-
-					for(int i=0;i<selected.size();i+=1) {
-						if(!(selected.get(i) instanceof SpriteNoteEvent) && !(selected.get(i) instanceof SpriteShortEvent) && !(selected.get(i) instanceof SpriteVoiceEvent)) {
-							channeled = false;
-							break;
-						}
-					}
-
-					if(!generic) {
-						if(selection_class == SpriteNoteEvent.class) {
-							FWSNoteEvent[] notes = new FWSNoteEvent[selected.size()];
-							for(int i=0;i<notes.length;i+=1) {
-								FWSNoteEvent note = (FWSNoteEvent)selected.get(i).getEvent();
-								notes[i] = note;
-							}
-							new MultiNoteEventDialog(main_window, notes);
-						} else if(selection_class == SpriteShortEvent.class) {
-							FWSEvent[] shorts = new FWSEvent[selected.size()];
-							for(int i=0;i<shorts.length;i+=1)
-								shorts[i] = selected.get(i).getEvent();
-
-							new MultiShortEventDialog(main_window, shorts);
-						} else if(selection_class == SpriteVoiceEvent.class) {
-							FWSEvent[] shorts = new FWSEvent[selected.size()];
-							for(int i=0;i<shorts.length;i+=1)
-								shorts[i] = selected.get(i).getEvent();
-
-							new MultiShortEventDialog(main_window, shorts);
-						} else {
-							FWSEvent[] events = new FWSEvent[selected.size()];
-							for(int i=0;i<events.length;i+=1)
-								events[i] = selected.get(i).getEvent();
-
-							new MultiEventDialog(main_window, events);
-						}
-					} else if(channeled) {
-						FWSEvent[] shorts = new FWSEvent[selected.size()];
-						for(int i=0;i<shorts.length;i+=1)
-							shorts[i] = selected.get(i).getEvent();
-
-						new MultiShortEventDialog(main_window, shorts);
-					} else {
-						FWSEvent[] events = new FWSEvent[selected.size()];
-						for(int i=0;i<events.length;i+=1)
-							events[i] = selected.get(i).getEvent();
-
-						new MultiEventDialog(main_window, events);
-					}
-				}
+				openProperties();
 			}
 		});
 		popup_menu.add(menu_item_properties);
@@ -306,6 +259,113 @@ public class SongViewPort extends JScrollPane {
 		this.setSize(d);
 		this.setBounds(x, y, d.width, d.height);
 		this.revalidate();
+	}
+
+	/** Copy the selected events to the clipboard. */
+	public void copySelected() {
+		copySelected(true);
+	}
+
+	/** Copy the selected events to the clipboard. */
+	public void copySelected(final boolean include_last_selected) {
+		clipboard.clear();
+
+		Sprite[] sprites = getSprites();
+		ArrayList<Sprite> selected = new ArrayList<>();
+		
+		for(int i=0;i<sprites.length;i+=1) {
+			if(sprites[i].getSelected())
+				selected.add(sprites[i]);
+		}
+
+		if(selected.size() <= 0 && include_last_selected) {
+			if(last_popup instanceof Sprite)
+				selected.add((Sprite)last_popup);
+		}
+
+		for(Sprite sprite: selected) {
+			FWSEvent affected_event = sprite.getEvent();
+			clipboard.add(affected_event);
+		}
+	}
+
+	/** Open the Properties window. */
+	private void openProperties() {
+		Sprite[] sprites = getSprites();
+		ArrayList<Sprite> selected = new ArrayList<>();
+		
+		for(int i=0;i<sprites.length;i+=1) {
+			if(sprites[i].getSelected())
+				selected.add(sprites[i]);
+		}
+
+		if(selected.size() <= 0) {
+			if(last_popup instanceof Sprite)
+				selected.add((Sprite)last_popup);
+		}
+
+		if(selected.size() == 1) {
+			Sprite sprite = selected.get(0);
+			sprite.createDialog();
+		} else if(selected.size() > 1) {
+			Class<?> selection_class = selected.get(0).getClass();
+			boolean generic = false, channeled = true;;
+
+			for(int i=0;i<selected.size();i+=1) {
+				if(selected.get(i).getClass() != selection_class) {
+					generic = true;
+					break;
+				}
+			}
+
+			for(int i=0;i<selected.size();i+=1) {
+				if(!(selected.get(i) instanceof SpriteNoteEvent) && !(selected.get(i) instanceof SpriteShortEvent) && !(selected.get(i) instanceof SpriteVoiceEvent)) {
+					channeled = false;
+					break;
+				}
+			}
+
+			if(!generic) {
+				if(selection_class == SpriteNoteEvent.class) {
+					FWSNoteEvent[] notes = new FWSNoteEvent[selected.size()];
+					for(int i=0;i<notes.length;i+=1) {
+						FWSNoteEvent note = (FWSNoteEvent)selected.get(i).getEvent();
+						notes[i] = note;
+					}
+					new MultiNoteEventDialog(main_window, notes);
+				} else if(selection_class == SpriteShortEvent.class) {
+					FWSEvent[] shorts = new FWSEvent[selected.size()];
+					for(int i=0;i<shorts.length;i+=1)
+						shorts[i] = selected.get(i).getEvent();
+
+					new MultiShortEventDialog(main_window, shorts);
+				} else if(selection_class == SpriteVoiceEvent.class) {
+					FWSEvent[] shorts = new FWSEvent[selected.size()];
+					for(int i=0;i<shorts.length;i+=1)
+						shorts[i] = selected.get(i).getEvent();
+
+					new MultiShortEventDialog(main_window, shorts);
+				} else {
+					FWSEvent[] events = new FWSEvent[selected.size()];
+					for(int i=0;i<events.length;i+=1)
+						events[i] = selected.get(i).getEvent();
+
+					new MultiEventDialog(main_window, events);
+				}
+			} else if(channeled) {
+				FWSEvent[] shorts = new FWSEvent[selected.size()];
+				for(int i=0;i<shorts.length;i+=1)
+					shorts[i] = selected.get(i).getEvent();
+
+				new MultiShortEventDialog(main_window, shorts);
+			} else {
+				FWSEvent[] events = new FWSEvent[selected.size()];
+				for(int i=0;i<events.length;i+=1)
+					events[i] = selected.get(i).getEvent();
+
+				new MultiEventDialog(main_window, events);
+			}
+		}
 	}
 
 	/** Set the selected channel. */
@@ -605,6 +665,8 @@ public class SongViewPort extends JScrollPane {
 
 	/** Remove the specified sprite. */
 	public void removeSprite(Sprite sprite) {
+		sprite.deselect();
+
 		Component[] piano_roll_components = piano_roll.getComponents();
 		for(int i=0;i<piano_roll_components.length;i+=1) {
 			if(piano_roll_components[i] == sprite) {
@@ -690,11 +752,28 @@ public class SongViewPort extends JScrollPane {
 
 	/** Delete selected sprites. */
 	public void deleteSelectedSprites() {
+		deleteSelectedSprites(true);
+	}
+
+	/** Delete selected sprites. */
+	public void deleteSelectedSprites(final boolean include_last_selected) {
 		Sprite[] sprites = getSprites();
+
+		int deletion_count = 0;
+
 		for(int i=0;i<sprites.length;i+=1) {
 			if(sprites[i].getSelected() && !sprites[i].getLocked()) {
 				active_sequence.removeEvent(sprites[i].getEvent());
 				removeSprite(sprites[i]);
+				deletion_count += 1;
+			}
+		}
+
+		if(deletion_count <= 0 && include_last_selected) {
+			if(this.last_popup instanceof Sprite) {
+				Sprite last_sprite = (Sprite)last_popup;
+				active_sequence.removeEvent(last_sprite.getEvent());
+				removeSprite(last_sprite);
 			}
 		}
 	}

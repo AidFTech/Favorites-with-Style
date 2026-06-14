@@ -3,9 +3,12 @@ package sprites;
 import java.awt.Color;
 import java.awt.Graphics;
 
+import canvas.SongViewPort;
 import event_dialogs.NoteEventDialog;
 import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
+import infobox.InfoBox;
+import options.MIDIPlayerOptions;
 
 public class SpriteNoteEvent extends Sprite {
 	private static final long serialVersionUID = -8720303813731603820L;
@@ -52,5 +55,45 @@ public class SpriteNoteEvent extends Sprite {
 	@Override
 	public void createDialog() {
 		new NoteEventDialog(getViewport().getMainWindow(), (FWSNoteEvent)affected_event);
+	}
+
+	@Override
+	public void select() {
+		super.select();
+
+		SongViewPort vp = getViewport();
+
+		if(vp.getSpritesLocked())
+			return;
+
+		MIDIPlayerOptions options = vp.getController().getMidiManager().getPlayerOptions();
+		
+		InfoBox info_box = options.info_display;
+		final byte rh = options.song_melody_rh, lh = options.song_melody_lh;
+
+		FWSNoteEvent note_event = (FWSNoteEvent)affected_event;
+		
+		if(note_event.channel == rh || note_event.channel == lh)
+			info_box.refreshMelody(note_event.note, true);
+	}
+
+	@Override
+	public void deselect() {
+		super.deselect();
+
+		SongViewPort vp = getViewport();
+
+		if(vp.getSpritesLocked())
+			return;
+
+		MIDIPlayerOptions options = vp.getController().getMidiManager().getPlayerOptions();
+		
+		InfoBox info_box = options.info_display;
+		final byte rh = options.song_melody_rh, lh = options.song_melody_lh;
+
+		FWSNoteEvent note_event = (FWSNoteEvent)affected_event;
+		
+		if(note_event.channel == rh || note_event.channel == lh)
+			info_box.refreshMelody(note_event.note, false);
 	}
 }

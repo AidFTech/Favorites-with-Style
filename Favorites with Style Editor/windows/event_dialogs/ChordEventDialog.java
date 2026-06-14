@@ -122,26 +122,6 @@ public class ChordEventDialog extends JDialog {
 		chord_piano.setBounds(12, 296, 335, 65);
 		getContentPane().add(chord_piano);
 
-		checkbox_bass.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				if(!listen_checkbox)
-					return;
-
-				listen_dropdown = false;
-				if(checkbox_bass.isSelected()) {
-					dropdown_bass_chord_root.setSelectedIndex(dropdown_main_chord_root.getSelectedIndex());
-					dropdown_bass_chord_type.setEnabled(true);
-					dropdown_bass_chord_type.setSelectedIndex(dropdown_main_chord_type.getSelectedIndex());
-				} else {
-					dropdown_bass_chord_root.setSelectedIndex(0);
-					dropdown_bass_chord_type.setEnabled(false);
-					dropdown_bass_chord_type.setSelectedIndex(34);
-				}
-				listen_dropdown = true;
-			}
-		});
-
 		dropdown_main_chord_root.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -223,6 +203,24 @@ public class ChordEventDialog extends JDialog {
 				updateChordsDropdown(set_main_chord, set_bass_chord, dropdown_main_chord_root, dropdown_main_chord_type, dropdown_bass_chord_root, dropdown_bass_chord_type);
 			}
 			
+		});
+		
+		checkbox_bass.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(!listen_checkbox)
+					return;
+
+				if(checkbox_bass.isSelected()) {
+					dropdown_bass_chord_root.setSelectedIndex(dropdown_main_chord_root.getSelectedIndex());
+					dropdown_bass_chord_type.setEnabled(true);
+					dropdown_bass_chord_type.setSelectedIndex(dropdown_main_chord_type.getSelectedIndex());
+				} else {
+					dropdown_bass_chord_root.setSelectedIndex(0);
+					dropdown_bass_chord_type.setEnabled(false);
+					dropdown_bass_chord_type.setSelectedIndex(34);
+				}
+			}
 		});
 
 		spinner_inversion.addChangeListener(new ChangeListener() {
@@ -395,6 +393,10 @@ public class ChordEventDialog extends JDialog {
 	private void updateChordsText(String text, ChordBody main, ChordBody bass) {
 		int type_index = -1;
 		String text_ns = text.replaceAll(" ","");
+		main.setRoot((byte)0x7F);
+		bass.setRoot((byte)0x7F);
+		main.setChord((byte)34);
+		bass.setChord((byte)34);
 		if(text.contains("/")) {
 			//Bass chord present. Split and use recursion.
 			updateChordsText(text.substring(0,text.indexOf("/")),main,new ChordBody());
@@ -594,7 +596,7 @@ public class ChordEventDialog extends JDialog {
 	/** Update the chord label. */
 	private void updateChordLabel(JLabel label, ChordPiano graphic, final int inversion, ChordBody main, ChordBody bass) {
 		String chord_text = main.getName();
-
+		
 		if(!bass.getNoChord()) {
 			chord_text += " / " + bass.getName();
 		}

@@ -654,11 +654,13 @@ public class InfoBox extends JPanel {
 	/** Refresh a melody note. */
 	public void refreshMelody(byte note, boolean on) {
 		if(note >= 0 && note < notes_down_melody.length) {
+			final boolean last_note_on = notes_down_melody[note];
+
 			notes_down_melody[note] = on;
 			if(keys[note] != null)
 				keys[note].depressed = on | notes_down_chord[note];
 
-			changed = true;
+			changed |= on != last_note_on;
 		}
 	}
 	
@@ -679,6 +681,14 @@ public class InfoBox extends JPanel {
 	public void refreshStyleChord(final byte root, final byte chord) {
 		ChordBody main = new ChordBody(root, chord);
 		refreshChord(main, null, -1, (byte)0);
+	}
+
+	/** Refresh a chord from style play. */
+	public void refreshStyleChord(final byte main_root, final byte main_chord, final byte bass_root, final byte bass_chord) {
+		ChordBody main = new ChordBody(main_root, main_chord);
+		ChordBody bass = (bass_root&0xF0) >= 0x20 && (bass_root&0xF0) <= 0x40 && (bass_root&0xF) >= 1 && (bass_root&0xF) <= 7 && bass_chord != 34 ?
+						new ChordBody(bass_root, bass_chord) : null;
+		refreshChord(main, bass, -1, (byte)0);
 	}
 
 	//Refresh a chord.
