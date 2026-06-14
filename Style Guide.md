@@ -127,8 +127,8 @@ Notes defined in the accompaniment MIDI that do not match the reference chord an
 | m7(11) | C→C, E→E♭, G→F, B→B♭ | C→C, D→D, E→E♭, G→G, A→B♭, B→B♭ |
 | mM7 | C→C, E→E♭, G→G, B→B | C→C, D→D, E→E♭, G→G, A→B♭, B→B |
 | mM7(9) | C→C, E→E♭, G→B, B→D+8 | C→C, D→D, E→E♭, G→G, A→B♭, B→B |
-| dim | C→C, E→E♭, G→F♯, B→C+8 | C→C, D→D, E→E♭, G→F♯, A→A♭, B→C+8 |
-| dim7 | C→C, E→E♭, G→F♯, B→A | C→C, D→C, E→E♭, G→F♯, A→A♭, B→C+8 |
+| dim | C→C, E→E♭, G→F♯, B→C+8 | C→C, D→D, E→E♭, G→F♯, A→A, B→C+8 |
+| dim7 | C→C, E→E♭, G→F♯, B→A | C→C, D→C, E→E♭, G→F♯, A→A, B→C+8 |
 | 7 | C→C, E→E, G→G, B→B♭ | C→C, D→C, E→E, G→G, A→B♭, B→B♭ |
 | 7sus | C→C, E→F, G→G, B→B♭ | C→C, D→C, E→F, G→G, A→B♭, B→B♭ |
 | 7♭5 | C→C, E→E, G→F♯, B→B♭ | C→C, D→D, E→E, G→F♯, A→B♭, B→B♭ |
