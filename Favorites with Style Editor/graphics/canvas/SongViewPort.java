@@ -58,6 +58,7 @@ import sprites.SpriteTextEvent;
 import sprites.SpriteTimeEvent;
 import sprites.SpriteVoiceEvent;
 import style.Style;
+import tools.PasteTickWindow;
 import voices.Voice;
 
 public class SongViewPort extends JScrollPane {
@@ -78,6 +79,8 @@ public class SongViewPort extends JScrollPane {
 
 	private JPopupMenu popup_menu;
 	private Component last_popup; //The last component to trigger the popup menu.
+
+	private int last_popup_x = -1;
 
 	private ArrayList<FWSEvent> clipboard = new ArrayList<>();
 
@@ -172,7 +175,12 @@ public class SongViewPort extends JScrollPane {
 
 		JMenuItem menu_item_paste = new JMenuItem("Paste");
 		popup_menu.add(menu_item_paste);
-
+		menu_item_paste.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				pasteClipboard();
+			}
+		});
 		popup_menu.addSeparator();
 
 		JMenuItem menu_item_delete = new JMenuItem("Delete");
@@ -286,6 +294,45 @@ public class SongViewPort extends JScrollPane {
 		for(Sprite sprite: selected) {
 			FWSEvent affected_event = sprite.getEvent();
 			clipboard.add(affected_event);
+		}
+	}
+
+	/** Paste the copied events with a window to specify tick. */
+	public void pasteClipboard() {
+		long start_tick = 0;
+		if(last_popup instanceof Sprite)
+			start_tick = ((Sprite)last_popup).getEvent().tick;
+		else if(last_popup_x >= 0) {
+			final int ppq = controller.getGlobalOptions().ppq;
+			start_tick = active_sequence.getXTime(last_popup_x, ppq)/snap*snap;
+		}
+
+		PasteTickWindow paste_window = new PasteTickWindow(main_window, start_tick);
+		if(paste_window.getSetTick() >= 0)
+			pasteClipboard(paste_window.getSetTick());
+	}
+
+	/** Paste the copied events at the specified tick. */
+	public void pasteClipboard(final long start_tick) {
+		if(clipboard.size() <= 0)
+			return;
+
+		long event_start = clipboard.get(0).tick;
+		for(FWSEvent event: clipboard) {
+			if(event.tick < event_start)
+				event_start = event.tick;
+		}
+
+		ArrayList<FWSEvent> new_clipboard = FWSEvent.createCopy(clipboard);
+
+		for(FWSEvent event: new_clipboard) {
+			event.tick -= event_start;
+			event.tick += start_tick;
+		}
+
+		for(FWSEvent event: new_clipboard) {
+			active_sequence.addEvent(event);
+			this.addSprite(event);
 		}
 	}
 
@@ -823,6 +870,7 @@ public class SongViewPort extends JScrollPane {
 			return;
 
 		last_popup = caller;
+		last_popup_x = e.getX();
 
 		popup_menu.show(caller, e.getX(), e.getY());
 	}

@@ -28,6 +28,7 @@ import tools.EventListWindow;
 import tools.MIDIDeviceWindow;
 import tools.MessageTester;
 import tools.OutputProfileWindow;
+import tools.PasteTickWindow;
 import tools.TickShiftWindow;
 import tools.TransposeWindow;
 import voices.InstrumentProfile;
@@ -587,6 +588,15 @@ public class FWSEditorMainWindow extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				song_viewport.copySelected(false);	
+			}
+		});
+
+		menu_item_paste.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				PasteTickWindow paste_window = new PasteTickWindow(self, controller.getMidiManager().getPlayerOptions().current_tick);
+				if(paste_window.getSetTick() >= 0)
+					song_viewport.pasteClipboard(paste_window.getSetTick());
 			}
 		});
 

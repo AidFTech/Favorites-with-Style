@@ -327,7 +327,8 @@ public abstract class TickPanel extends JPanel {
 		if(start_beat >= beat_ticks.length)
 			start_beat = beat_ticks.length - 1;
 
-		new_tick = beat_ticks[start_beat];
+		final long init_tick = parent_sequence.getTickAt(initial_tick);
+		new_tick = beat_ticks[start_beat] + init_tick;
 		
 		current_tick = new_tick + (Long)spinner_tick.getValue();
 	}

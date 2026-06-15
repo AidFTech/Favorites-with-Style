@@ -54,8 +54,6 @@ Currently, the following features are available in Favorites with Style:
 
 ### To Do/Planned
 
-- Accelerator Functions such as Cut/Copy/Paste
-
 - Instrument Profiles:
 
   - Casio Chord/Fingering Display: Currently, I only have the sysex syntax for chord name display on Yamaha PSR and PSR-E keyboards. It is possible to display this information on Casio instruments as well, as shown in [these](https://www.youtube.com/watch?v=Sn-iFQpB4ek) [videos](https://www.youtube.com/watch?v=rXEI-dPivvE).
