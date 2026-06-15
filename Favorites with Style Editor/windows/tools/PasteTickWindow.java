@@ -17,7 +17,7 @@ public class PasteTickWindow extends JDialog {
 	public PasteTickWindow(FWSEditorMainWindow parent, final long tick) {
 		super(parent, true);
 
-		this.setTitle("Event Properties");
+		this.setTitle("Paste Events");
 		this.setType(Type.UTILITY);
 		this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		this.getContentPane().setPreferredSize(new Dimension(385, 175));

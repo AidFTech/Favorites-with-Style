@@ -22,7 +22,7 @@ A style can use any of the sixteen available MIDI channels, however, they must m
 
 Behavior and mapping for each channel are dictated by the rules defined in the CASM binary. For each “input” source channel used in the style MIDI, in each section of the style, the following rules can be defined:
 
-- Destination Channel: The “output” channel events should map to. This can be the same as the source channel, or, for example, in the case of non-linear phrase behavior, any of the sixteen available MIDI channels.
+- Destination Channel: The “output” channel events should map to. This can be the same as the source channel, or, for example, in the case of non-linear phrase behavior, any of the eight reserved style channels.
 
 - Source Root and Chord: The accompaniment root and chord defined in the style MIDI. Ideally C M7.
 
