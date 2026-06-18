@@ -44,6 +44,7 @@ import main_window.FWSEditorMainWindow;
 import main_window.NoteToggleButton;
 import main_window.FWSEditorMainWindow.DisplayMode;
 import options.MIDIPlayerOptions;
+import options.SelectionOptions;
 import sprites.Sprite;
 import sprites.SpriteChordEvent;
 import sprites.SpriteKeyEvent;
@@ -85,6 +86,7 @@ public class SongViewPort extends JScrollPane {
 	private ArrayList<FWSEvent> clipboard = new ArrayList<>();
 
 	private CanvasOptionGroup canvas_options;
+	private SelectionOptions selection_options = new SelectionOptions();
 
 	public SongViewPort(FWSEditor controller, FWSEditorMainWindow main_window, int x, int y, Dimension d) {
 		super();
@@ -199,7 +201,7 @@ public class SongViewPort extends JScrollPane {
 		menu_item_properties.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				openProperties();
+				openProperties(true);
 			}
 		});
 		popup_menu.add(menu_item_properties);
@@ -337,7 +339,7 @@ public class SongViewPort extends JScrollPane {
 	}
 
 	/** Open the Properties window. */
-	private void openProperties() {
+	public void openProperties(final boolean include_last_selected) {
 		Sprite[] sprites = getSprites();
 		ArrayList<Sprite> selected = new ArrayList<>();
 		
@@ -346,7 +348,7 @@ public class SongViewPort extends JScrollPane {
 				selected.add(sprites[i]);
 		}
 
-		if(selected.size() <= 0) {
+		if(selected.size() <= 0 && include_last_selected) {
 			if(last_popup instanceof Sprite)
 				selected.add((Sprite)last_popup);
 		}
@@ -411,6 +413,44 @@ public class SongViewPort extends JScrollPane {
 					events[i] = selected.get(i).getEvent();
 
 				new MultiEventDialog(main_window, events);
+			}
+		}
+	}
+
+	/** Get the selection options. */
+	public SelectionOptions getSelectionOptions() {
+		return this.selection_options;
+	}
+
+	/** Select events from a click and drag. */
+	public void selectDraggedChannelEvents(final int start_y, final int h, final long start_tick, final long end_tick) {
+		if(sprites_locked)
+			return;
+
+		ArrayList<FWSEvent> sequence_events = active_sequence.getChannelEvents();
+
+		if(start_y < SongPanelPianoRoll.voice_y) { //Note selection.
+			for(FWSEvent event: sequence_events) {
+				if(!(event instanceof FWSNoteEvent))
+					continue;
+
+				FWSNoteEvent note_event = (FWSNoteEvent)event;
+
+				final byte upper_note = (byte)(127-start_y/FWS.event_height), lower_note = (byte)(128-(start_y+h)/FWS.event_height);
+
+				if(note_event.note < lower_note || note_event.note > upper_note)
+					continue;
+
+				if(note_event.channel >= 0 && note_event.channel < selection_options.allowed_channels.length && !selection_options.allowed_channels[note_event.channel])
+					continue;
+
+				if(note_event.tick < start_tick)
+					continue;
+
+				if(note_event.tick > end_tick)
+					continue;
+
+				getEventSprite(note_event).select();
 			}
 		}
 	}

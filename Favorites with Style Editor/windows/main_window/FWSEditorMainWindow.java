@@ -19,6 +19,7 @@ import main_window.NoteToggleButton.NoteToggle;
 import options.MIDIPlayerOptions;
 import settings_dialogs.CasmEditor;
 import settings_dialogs.FirstVoicesWindow;
+import settings_dialogs.SelectionOptionsWindow;
 import settings_dialogs.SequencePropertiesWindow;
 import settings_dialogs.SongPropertiesWindow;
 import settings_dialogs.StyleManagerWindow;
@@ -221,6 +222,15 @@ public class FWSEditorMainWindow extends JFrame {
 		JMenuItem menu_item_delete = new JMenuItem("Delete");
 		menu_item_delete.setAccelerator(KeyStroke.getKeyStroke((char)KeyEvent.VK_DELETE));
 		menu_edit.add(menu_item_delete);
+
+		JMenu menu_selection = new JMenu("Selection");
+		main_menu_bar.add(menu_selection);
+
+		JMenuItem menu_item_selection_filter = new JMenuItem("Selection Filter");
+		menu_selection.add(menu_item_selection_filter);
+
+		JMenuItem menu_item_selection_properties = new JMenuItem("Selection Properties");
+		menu_selection.add(menu_item_selection_properties);
 
 		JMenu menu_song = new JMenu("Song/Sequence");
 		main_menu_bar.add(menu_song);
@@ -614,6 +624,20 @@ public class FWSEditorMainWindow extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				song_viewport.deleteSelectedSprites(false);
 				song_viewport.refresh();
+			}
+		});
+
+		menu_item_selection_filter.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new SelectionOptionsWindow(self, song_viewport.getSelectionOptions());
+			}
+		});
+
+		menu_item_selection_properties.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.openProperties(false);
 			}
 		});
 

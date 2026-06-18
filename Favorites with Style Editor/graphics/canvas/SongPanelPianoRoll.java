@@ -34,7 +34,7 @@ public class SongPanelPianoRoll extends JLayeredPane {
 	private FWSEditor controller;
 	private SongViewPort vp_parent;
 
-	private int mx = -1, rx = -1, my = -1, dx = -1;
+	private int mx = -1, rx = -1, my = -1, dx = -1, dy = -1;
 	private long mt = 0;
 	private boolean dragged = false;
 	
@@ -151,6 +151,7 @@ public class SongPanelPianoRoll extends JLayeredPane {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
+				final boolean was_dragged = dragged;
 				dragged = false;
 				FWSSequence active_sequence = parent.getActiveSequence();
 				if(active_sequence == null)
@@ -164,12 +165,32 @@ public class SongPanelPianoRoll extends JLayeredPane {
 						vp_parent.addNoteEvent(active_sequence.getXTime(rx,ppq)/snap*snap, (byte)(127-my/FWS.event_height), duration);
 					
 					repaint();
+				} else if(vp_parent.getPlacementLength() == null && !vp_parent.getSpritesLocked() && was_dragged) {
+					int x = mx, w = dx, y = my, h = dy;
+					if(dx < 0) {
+						x = mx + dx;
+						w = Math.abs(dx);
+					}
+
+					if(dy < 0) {
+						y = my + dy;
+						h = Math.abs(dy);
+					}
+					
+					final long start_time = (long)active_sequence.getXTime(x,ppq), end_time = (long)(active_sequence.getXTime(x+w, ppq));
+
+					vp_parent.selectDraggedChannelEvents(y, h, start_time, end_time);
+					
+					dy = 0;
+					dx = 0;
+
+					repaint();
 				}
 			}
 
 			@Override
 			public void mouseExited(MouseEvent arg0) {
-				if(vp_parent.getPlacementLength() == null) {
+				if(vp_parent.getPlacementLength() == null && !dragged) {
 					mx = -1;
 					my = -1;
 					if(head != null)
@@ -188,7 +209,7 @@ public class SongPanelPianoRoll extends JLayeredPane {
 					mx = active_sequence.getXPosition(mt, ppq);
 				}
 				rx = arg0.getX();
-				if(!dragged)
+				if(!dragged || vp_parent.getPlacementLength() == null)
 					my = arg0.getY()/FWS.event_height*FWS.event_height;
 				if(head != null)
 					head.recolor(my/FWS.event_height);
@@ -199,7 +220,12 @@ public class SongPanelPianoRoll extends JLayeredPane {
 			public void mouseDragged(MouseEvent arg0) {
 				if(vp_parent.getPlacementLength() == NoteToggle.NOTE_TOGGLE_DRAG) {
 					dragged = true;
-					dx = drag(arg0.getX());
+					dx = dragX(arg0.getX());
+					repaint();
+				} else if(vp_parent.getPlacementLength() == null && !vp_parent.getSpritesLocked()) {
+					dragged = true;
+					dx = dragX(arg0.getX());
+					dy = dragY(arg0.getY());
 					repaint();
 				}
 			}
@@ -272,6 +298,21 @@ public class SongPanelPianoRoll extends JLayeredPane {
 					g.drawLine(mx, my, mx, my + FWS.event_height);
 					g.drawLine(mx, my + FWS.event_height, mx + ppq/2, my + FWS.event_height);
 				}
+			} else if(dragged) {
+				int x = mx, w = dx, y = my, h = dy;
+				if(dx < 0) {
+					x = mx + dx;
+					w = Math.abs(dx);
+				}
+
+				if(dy < 0) {
+					y = my + dy;
+					h = Math.abs(dy);
+				}
+
+				g.setColor(Color.BLUE);
+				for(int i=0;i<3;i+=1)
+					g.drawRect(x+i, y+i, w-2*i, h-2*i);
 			}
 		}
 	}
@@ -301,8 +342,8 @@ public class SongPanelPianoRoll extends JLayeredPane {
 		return this.vp_parent;
 	}
 
-	/** Get the amount dragged. */
-	private int drag(int x) {
+	/** Get the amount dragged in the X direction. */
+	private int dragX(int x) {
 		final int ppq = vp_parent.getController().getGlobalOptions().ppq;
 		FWSSequence active_sequence = vp_parent.getActiveSequence();
 		if(active_sequence == null)
@@ -316,6 +357,17 @@ public class SongPanelPianoRoll extends JLayeredPane {
 		x = active_sequence.getXPosition(active_sequence.getXTime(x, ppq)/vp_parent.getSnap()*vp_parent.getSnap(), ppq);
 
 		return x-mx;
+	}
+
+	/** Get the amount dragged in the Y direction. */
+	private int dragY(int y) {
+		final int limit = FWS.event_height*128;
+		if(my < limit && y > limit)
+			y = limit;
+		else if(my > limit && y < limit)
+			y = limit;
+
+		return (y-my)/FWS.event_height*FWS.event_height;
 	}
 
 	/** Get a ratio from a note toggle option. */
