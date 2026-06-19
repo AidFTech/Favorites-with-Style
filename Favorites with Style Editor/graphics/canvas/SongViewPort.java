@@ -9,6 +9,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 
 import javax.sound.midi.ShortMessage;
@@ -84,6 +85,7 @@ public class SongViewPort extends JScrollPane {
 	private int last_popup_x = -1;
 
 	private ArrayList<FWSEvent> clipboard = new ArrayList<>();
+	private int clipboard_tpq = 192;
 
 	private CanvasOptionGroup canvas_options;
 	private SelectionOptions selection_options = new SelectionOptions();
@@ -280,6 +282,8 @@ public class SongViewPort extends JScrollPane {
 	public void copySelected(final boolean include_last_selected) {
 		clipboard.clear();
 
+		this.clipboard_tpq = active_sequence.getTPQ();
+
 		Sprite[] sprites = getSprites();
 		ArrayList<Sprite> selected = new ArrayList<>();
 		
@@ -325,9 +329,17 @@ public class SongViewPort extends JScrollPane {
 				event_start = event.tick;
 		}
 
+		event_start = event_start*active_sequence.getTPQ()/clipboard_tpq;
 		ArrayList<FWSEvent> new_clipboard = FWSEvent.createCopy(clipboard);
 
 		for(FWSEvent event: new_clipboard) {
+			event.tick = event.tick*active_sequence.getTPQ()/clipboard_tpq;
+			
+			if(event instanceof FWSNoteEvent) {
+				FWSNoteEvent note_event = (FWSNoteEvent)event;
+				note_event.duration = note_event.duration*active_sequence.getTPQ()/clipboard_tpq;
+			}
+
 			event.tick -= event_start;
 			event.tick += start_tick;
 		}
@@ -429,6 +441,14 @@ public class SongViewPort extends JScrollPane {
 
 		ArrayList<FWSEvent> sequence_events = active_sequence.getChannelEvents();
 
+		boolean[] allowed_channels = Arrays.copyOf(selection_options.allowed_channels, selection_options.allowed_channels.length);
+		if(selection_options.allowed_active) {
+			for(int i=0;i<allowed_channels.length;i+=1)
+				allowed_channels[i] = false;
+
+			allowed_channels[channel_selected] = true;
+		}
+
 		if(start_y < SongPanelPianoRoll.voice_y) { //Note selection.
 			for(FWSEvent event: sequence_events) {
 				if(!(event instanceof FWSNoteEvent))
@@ -441,17 +461,87 @@ public class SongViewPort extends JScrollPane {
 				if(note_event.note < lower_note || note_event.note > upper_note)
 					continue;
 
-				if(note_event.channel >= 0 && note_event.channel < selection_options.allowed_channels.length && !selection_options.allowed_channels[note_event.channel])
+				if(note_event.channel >= 0 && note_event.channel < allowed_channels.length && !allowed_channels[note_event.channel])
 					continue;
 
 				if(note_event.tick < start_tick)
 					continue;
 
-				if(note_event.tick > end_tick)
+				if(note_event.tick >= end_tick)
 					continue;
 
 				getEventSprite(note_event).select();
 			}
+		} else { //Short selection.
+			for(FWSEvent event: sequence_events) {
+				if(!(event instanceof FWSShortEvent) && !(event instanceof FWSVoiceEvent))
+					continue;
+
+				if(event instanceof FWSShortEvent) {
+					if(start_y + h < SongPanelPianoRoll.voice_y)
+						continue;
+
+					FWSShortEvent short_event = (FWSShortEvent)event;
+					if(short_event.channel >= 0 && short_event.channel < allowed_channels.length && !allowed_channels[short_event.channel])
+						continue;
+				} else if(event instanceof FWSVoiceEvent) {
+					if(start_y > SongPanelPianoRoll.voice_y)
+						continue;
+
+					FWSVoiceEvent voice_event = (FWSVoiceEvent)event;
+					if(voice_event.channel >= 0 && voice_event.channel < allowed_channels.length && !allowed_channels[voice_event.channel])
+						continue;
+				}
+
+				Sprite event_sprite = getEventSprite(event);
+				final int sprite_y = event_sprite.getY();
+				if(sprite_y < start_y || sprite_y > start_y + h)
+					continue;
+
+				if(event.tick < start_tick)
+					continue;
+
+				if(event.tick >= end_tick)
+					continue;
+
+				event_sprite.select();
+			}
+		}
+
+		bringToFront();
+	}
+
+	/** Select all events. If filter is true, select only events in the selection filter. If non_channel is true, select non-channel events. */
+	public void selectAll(final boolean filter, final boolean non_channel) {
+		boolean[] allowed_channels = Arrays.copyOf(selection_options.allowed_channels, selection_options.allowed_channels.length);
+		if(selection_options.allowed_active) {
+			for(int i=0;i<allowed_channels.length;i+=1)
+				allowed_channels[i] = false;
+
+			allowed_channels[channel_selected] = true;
+		}
+
+		ArrayList<FWSEvent> sequence_events = active_sequence.getChannelEvents();
+		for(FWSEvent event: sequence_events) {
+			if(!non_channel && !(event instanceof FWSNoteEvent) && !(event instanceof FWSShortEvent) && !(event instanceof FWSVoiceEvent))
+				continue;
+
+			if(event instanceof FWSNoteEvent) {
+				FWSNoteEvent note_event = (FWSNoteEvent)event;
+				if(filter && note_event.channel >= 0 && note_event.channel < allowed_channels.length && !allowed_channels[note_event.channel])
+					continue;
+			} else if(event instanceof FWSShortEvent) {
+				FWSShortEvent short_event = (FWSShortEvent)event;
+				if(filter && short_event.channel >= 0 && short_event.channel < allowed_channels.length && !allowed_channels[short_event.channel])
+					continue;
+			} else if(event instanceof FWSVoiceEvent) {
+				FWSVoiceEvent voice_event = (FWSVoiceEvent)event;
+				if(filter && voice_event.channel >= 0 && voice_event.channel < allowed_channels.length && !allowed_channels[voice_event.channel])
+					continue;
+			}
+
+			Sprite event_sprite = getEventSprite(event);
+			event_sprite.select();
 		}
 	}
 
@@ -512,13 +602,13 @@ public class SongViewPort extends JScrollPane {
 
 			if(parts[i] instanceof SpriteNoteEvent) {
 				SpriteNoteEvent note_event = (SpriteNoteEvent)parts[i];
-				active = ((FWSNoteEvent)note_event.getEvent()).channel == channel_selected;
+				active = ((FWSNoteEvent)note_event.getEvent()).channel == channel_selected || note_event.getSelected();
 			} else if(parts[i] instanceof SpriteVoiceEvent) {
 				SpriteVoiceEvent voice_event = (SpriteVoiceEvent)parts[i];
-				active = ((FWSVoiceEvent)voice_event.getEvent()).channel == channel_selected;
+				active = ((FWSVoiceEvent)voice_event.getEvent()).channel == channel_selected || voice_event.getSelected();
 			} else if(parts[i] instanceof SpriteShortEvent) {
 				SpriteShortEvent short_event = (SpriteShortEvent)parts[i];
-				active = ((FWSShortEvent)short_event.getEvent()).channel == channel_selected;
+				active = ((FWSShortEvent)short_event.getEvent()).channel == channel_selected || short_event.getSelected();
 			}
 
 			if(parts[i] instanceof Sprite) {

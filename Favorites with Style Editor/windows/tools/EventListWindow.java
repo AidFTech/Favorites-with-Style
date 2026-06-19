@@ -40,6 +40,10 @@ public class EventListWindow extends JDialog {
 	private FWSEditor controller;
 
 	public EventListWindow(FWSEditorMainWindow parent, FWSSequence sequence) {
+		this(parent, sequence, sequence.getAllEvents());
+	}
+
+	public EventListWindow(FWSEditorMainWindow parent, FWSSequence sequence, ArrayList<FWSEvent> event_list) {
 		super(parent, true);
 		
 		controller = parent.getController();
@@ -55,9 +59,9 @@ public class EventListWindow extends JDialog {
 		this.setLocationRelativeTo(parent);
 		getContentPane().setLayout(null);
 
-		event_list = sequence.getAllEvents();
+		this.event_list = event_list;
 		DefaultListModel<String> event_list_model = new DefaultListModel<>();
-		populateEventList(event_list, sequence, event_list_model);
+		populateEventList(this.event_list, sequence, event_list_model);
 
 		JList<String> jlist_event_list = new JList<>(event_list_model);
 
@@ -77,12 +81,12 @@ public class EventListWindow extends JDialog {
 
 					MultiEventDialog event_dialog = new MultiEventDialog(parent, events);
 					if(event_dialog.getRefresh()) {
-						event_list = sequence.getAllEvents();
-						populateEventList(event_list, sequence, event_list_model);
+						sortEventList();
+						populateEventList(self.event_list, sequence, event_list_model);
 						jlist_event_list.setModel(event_list_model);
 					}
 				} else if(indices.length == 1) {
-					FWSEvent event = event_list.get(indices[0]);
+					FWSEvent event = self.event_list.get(indices[0]);
 
 					if(event instanceof FWSNoteEvent)
 						new NoteEventDialog(parent, (FWSNoteEvent)event);
@@ -100,8 +104,8 @@ public class EventListWindow extends JDialog {
 							new PitchBendEventDialog(parent, short_event);
 					}
 
-					event_list = sequence.getAllEvents();
-					populateEventList(event_list, sequence, event_list_model);
+					sortEventList();
+					populateEventList(self.event_list, sequence, event_list_model);
 					jlist_event_list.setModel(event_list_model);
 				}
 			}
@@ -121,7 +125,7 @@ public class EventListWindow extends JDialog {
 				FWSEvent[] events = new FWSEvent[indices.length];
 
 				for(int i=0;i<indices.length;i+=1)
-					events[i] = event_list.get(indices[i]);
+					events[i] = self.event_list.get(indices[i]);
 
 				for(int i=0;i<events.length;i+=1) {
 					sequence.removeEvent(events[i]);
@@ -129,8 +133,8 @@ public class EventListWindow extends JDialog {
 				}
 				parent.getViewPort().refresh();
 
-				event_list = sequence.getAllEvents();
-				populateEventList(event_list, sequence, event_list_model);
+				sortEventList();
+				populateEventList(self.event_list, sequence, event_list_model);
 				jlist_event_list.setModel(event_list_model);
 			}
 		});
@@ -168,5 +172,27 @@ public class EventListWindow extends JDialog {
 
 			event_list_model.addElement(m + ":" + b + ":" + tick + ": " + event_string);
 		}
+	}
+
+	/** Sort the event list. */
+	private void sortEventList() {
+		ArrayList<FWSEvent> new_list = new ArrayList<>();
+		
+		for(FWSEvent event: event_list) {
+			int tick_index = -1;
+			for(int i=0;i<new_list.size();i+=1) {
+				if(new_list.get(i).tick > event.tick) {
+					tick_index = i;
+					break;
+				}
+			}
+
+			if(tick_index < 0)
+				new_list.add(event);
+			else
+				new_list.add(tick_index, event);
+		}
+
+		event_list = new_list;
 	}
 }

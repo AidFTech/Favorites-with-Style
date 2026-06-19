@@ -731,7 +731,7 @@ public class SaveLoadController {
 
 		String default_path = save_file.getParent();
 		
-		if(default_path != null && !default_path.contains("./fwstmp"))
+		if(default_path != null && !default_path.contains("./.fwstmp"))
 			this.last_filepath = save_file.getParent();
 	}
 

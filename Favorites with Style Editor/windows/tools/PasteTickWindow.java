@@ -12,6 +12,7 @@ import event_dialogs.SequenceTickPanel;
 import main_window.FWSEditorMainWindow;
 
 public class PasteTickWindow extends JDialog {
+	private static final long serialVersionUID = 97777662513455983L;
 	private long set_tick = -1;
 
 	public PasteTickWindow(FWSEditorMainWindow parent, final long tick) {

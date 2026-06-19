@@ -27,7 +27,7 @@ public class MultiShortEventDialog extends JDialog {
 	public MultiShortEventDialog(FWSEditorMainWindow parent, FWSEvent[] fws_events) {
 		super(parent, true);
 
-		this.setTitle("Note Events");
+		this.setTitle("Short Events");
 		this.setType(Type.UTILITY);
 		this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		this.getContentPane().setPreferredSize(new Dimension(385, 230));
@@ -158,6 +158,8 @@ public class MultiShortEventDialog extends JDialog {
 					sequence.refreshEvent(fws_event);
 					vp.refreshSprite(fws_event);
 				}
+				
+				dispatchEvent(new WindowEvent(self, WindowEvent.WINDOW_CLOSING));
 			}
 		});
 		getContentPane().add(button_apply);

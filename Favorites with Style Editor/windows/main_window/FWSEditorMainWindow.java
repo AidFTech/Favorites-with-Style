@@ -222,6 +222,16 @@ public class FWSEditorMainWindow extends JFrame {
 		JMenuItem menu_item_delete = new JMenuItem("Delete");
 		menu_item_delete.setAccelerator(KeyStroke.getKeyStroke((char)KeyEvent.VK_DELETE));
 		menu_edit.add(menu_item_delete);
+		
+		menu_edit.addSeparator();
+
+		JMenuItem menu_item_select_all_filter = new JMenuItem("Select All in Filter");
+		menu_item_select_all_filter.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ctrl_accelerator));
+		menu_edit.add(menu_item_select_all_filter);
+
+		JMenuItem menu_item_select_all = new JMenuItem("Select All");
+		menu_item_select_all.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_A, ctrl_accelerator | KeyEvent.SHIFT_DOWN_MASK));
+		menu_edit.add(menu_item_select_all);
 
 		JMenu menu_selection = new JMenu("Selection");
 		main_menu_bar.add(menu_selection);
@@ -604,7 +614,7 @@ public class FWSEditorMainWindow extends JFrame {
 		menu_item_paste.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				PasteTickWindow paste_window = new PasteTickWindow(self, controller.getMidiManager().getPlayerOptions().current_tick);
+				PasteTickWindow paste_window = new PasteTickWindow(self, controller.getMidiManager().getPlayerOptions().start_tick);
 				if(paste_window.getSetTick() >= 0)
 					song_viewport.pasteClipboard(paste_window.getSetTick());
 			}
@@ -624,6 +634,20 @@ public class FWSEditorMainWindow extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				song_viewport.deleteSelectedSprites(false);
 				song_viewport.refresh();
+			}
+		});
+
+		menu_item_select_all_filter.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.selectAll(true, true);
+			}
+		});
+
+		menu_item_select_all.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.selectAll(false, true);
 			}
 		});
 

@@ -28,6 +28,12 @@ public class SelectionOptionsWindow extends JDialog {
 		this.setLocationRelativeTo(parent);
 		getContentPane().setLayout(null);
 
+		JCheckBox checkbox_active_channel = new JCheckBox("Use Active Channel");
+		checkbox_active_channel.setBounds(218, 17, 140, 32);
+		checkbox_active_channel.setToolTipText("Check to filter channel number selection from the active channel selected in the main window.");
+		checkbox_active_channel.setSelected(options.allowed_active);
+		getContentPane().add(checkbox_active_channel);
+
 		JCheckBox[] checkbox_channels = new JCheckBox[options.allowed_channels.length];
 
 		for(int i=0;i<checkbox_channels.length;i+=1) {
@@ -37,8 +43,17 @@ public class SelectionOptionsWindow extends JDialog {
 			checkbox_channel.setSelected(options.allowed_channels[i]);
 			getContentPane().add(checkbox_channel);
 
+			checkbox_channel.setEnabled(!checkbox_active_channel.isSelected());
 			checkbox_channels[i] = checkbox_channel;
 		}
+
+		checkbox_active_channel.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				for(JCheckBox checkbox_channel: checkbox_channels)
+					checkbox_channel.setEnabled(!checkbox_active_channel.isSelected());
+			}
+		});
 
 		SelectionOptionsWindow self = this;
 
@@ -47,6 +62,8 @@ public class SelectionOptionsWindow extends JDialog {
 		button_apply.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				options.allowed_active = checkbox_active_channel.isSelected();
+				
 				for(int i=0;i<options.allowed_channels.length;i+=1)
 					options.allowed_channels[i] = checkbox_channels[i].isSelected();
 
