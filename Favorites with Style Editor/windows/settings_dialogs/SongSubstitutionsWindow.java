@@ -103,24 +103,35 @@ public class SongSubstitutionsWindow extends JDialog {
 				this.profiles.add(profile);
 		}
 
-		for(String profile: this.profiles) {
-			SequenceSubstitution[] song_subs = song.getSubstitutions(profile);
-			if(song_subs == null)
-				continue;
-			
-			SequenceSubstitution[] new_subs = new SequenceSubstitution[song_subs.length];
-
-			for(int i=0;i<song_subs.length;i+=1) {
-				Voice[] alt_voices = song_subs[i].getAlternates();
-
-				Voice[] new_voices = new Voice[alt_voices.length];
-				for(int v=0;v<alt_voices.length;v+=1)
-					new_voices[v] = new Voice(alt_voices[v]);
-
-				new_subs[i] = new SequenceSubstitution(song_subs[i].getVoice(), new_voices);
+		{
+			Voice[] song_voices = song.getAllVoices();
+			for(String profile: this.profiles) {
+				SequenceSubstitution[] song_subs = song.getSubstitutions(profile);
+				if(song_subs == null)
+					continue;
+				
+				ArrayList<SequenceSubstitution> new_sub_vec = new ArrayList<>();
+	
+				for(int i=0;i<song_subs.length;i+=1) {
+					Voice original_voice = song_subs[i].getVoice();
+					
+					if(Voice.matchVoice(song_voices, original_voice.voice, original_voice.lsb, original_voice.msb) == null)
+						continue;
+					
+					Voice[] alt_voices = song_subs[i].getAlternates();
+	
+					Voice[] new_voices = new Voice[alt_voices.length];
+					for(int v=0;v<alt_voices.length;v+=1)
+						new_voices[v] = new Voice(alt_voices[v]);
+	
+					new_sub_vec.add(new SequenceSubstitution(song_subs[i].getVoice(), new_voices));
+				}
+				
+				SequenceSubstitution[] new_subs = new SequenceSubstitution[new_sub_vec.size()];
+				new_sub_vec.toArray(new_subs);
+	
+				active_profile.put(profile, new_subs);
 			}
-
-			active_profile.put(profile, new_subs);
 		}
 
 		populateProfileList(this.profiles, list_profile);
