@@ -26,6 +26,7 @@ public class MultiNoteEventDialog extends JDialog {
 	private static final long serialVersionUID = -3320470611362922705L;
 
 	private JSpinner spinner_channel, spinner_note, spinner_transpose, spinner_velocity, spinner_velocity_percentage, spinner_duration, spinner_duration_percentage;
+	private boolean refresh = false;
 
 	public MultiNoteEventDialog(FWSEditorMainWindow parent, FWSNoteEvent[] fws_events) {
 		super(parent, true);
@@ -277,6 +278,7 @@ public class MultiNoteEventDialog extends JDialog {
 			public void actionPerformed(ActionEvent arg0) {
 				SongViewPort vp = parent.getViewPort();
 				FWSSequence sequence = vp.getActiveSequence();
+				refresh = true;
 
 				for(FWSNoteEvent fws_event: fws_events) {
 					if(!checkbox_keep_channel.isSelected())
@@ -414,6 +416,11 @@ public class MultiNoteEventDialog extends JDialog {
 			max_note += shift;
 
 		return new byte[] {min_note, max_note};
+	}
+
+	/** Return whether "Apply" was clicked. */
+	public boolean getRefresh() {
+		return this.refresh;
 	}
 
 	/** Set the note name display. */

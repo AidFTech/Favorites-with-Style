@@ -3,7 +3,6 @@ package tools;
 import java.awt.Dimension;
 import java.util.ArrayList;
 
-import javax.sound.midi.ShortMessage;
 import javax.swing.DefaultListModel;
 import javax.swing.JDialog;
 
@@ -14,20 +13,18 @@ import fwsevents.FWSShortEvent;
 import fwsevents.FWSStyleChangeEvent;
 import fwsevents.FWSVoiceEvent;
 import main_window.FWSEditorMainWindow;
+import sprites.Sprite;
 import voices.Voice;
 
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
+import canvas.SongViewPort;
 import controllers.FWSEditor;
-import event_dialogs.ChannelPressureEventDialog;
-import event_dialogs.ControlEventDialog;
-import event_dialogs.KeyPressureEventDialog;
 import event_dialogs.MultiEventDialog;
-import event_dialogs.NoteEventDialog;
-import event_dialogs.PitchBendEventDialog;
-import event_dialogs.VoiceEventDialog;
+import event_dialogs.MultiNoteEventDialog;
+import event_dialogs.MultiShortEventDialog;
 
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
@@ -79,30 +76,47 @@ public class EventListWindow extends JDialog {
 					for(int i=0;i<indices.length;i+=1)
 						events[i] = event_list.get(indices[i]);
 
-					MultiEventDialog event_dialog = new MultiEventDialog(parent, events);
-					if(event_dialog.getRefresh()) {
+					boolean all_notes = true, all_shorts = true;
+					boolean refreshed = false;
+
+					for(FWSEvent event: events) {
+						if(!(event instanceof FWSNoteEvent))
+							all_notes = false;
+						if(!(event instanceof FWSShortEvent) && !(event instanceof FWSVoiceEvent))
+							all_shorts = false;
+
+						if(!all_notes && !all_shorts)
+							break;
+					}
+
+					if(all_notes) {
+						FWSNoteEvent[] note_events = new FWSNoteEvent[events.length];
+						for(int i=0;i<events.length;i+=1)
+							note_events[i] = (FWSNoteEvent)events[i];
+
+						MultiNoteEventDialog event_dialog = new MultiNoteEventDialog(parent, note_events);
+						refreshed = event_dialog.getRefresh();
+					} else if(all_shorts) {
+						MultiShortEventDialog event_dialog = new MultiShortEventDialog(parent, events);
+						refreshed = event_dialog.getRefresh();
+					} else {
+						MultiEventDialog event_dialog = new MultiEventDialog(parent, events);
+						refreshed = event_dialog.getRefresh();
+					}
+					if(refreshed) {
 						sortEventList();
 						populateEventList(self.event_list, sequence, event_list_model);
 						jlist_event_list.setModel(event_list_model);
 					}
 				} else if(indices.length == 1) {
 					FWSEvent event = self.event_list.get(indices[0]);
+					SongViewPort viewport = parent.getViewPort();
+					Sprite sprite = viewport.getEventSprite(event);
 
-					if(event instanceof FWSNoteEvent)
-						new NoteEventDialog(parent, (FWSNoteEvent)event);
-					else if(event instanceof FWSVoiceEvent)
-						new VoiceEventDialog(parent, (FWSVoiceEvent)event);
-					else if(event instanceof FWSShortEvent) {
-						FWSShortEvent short_event = (FWSShortEvent)event;
-						if((short_event.command&0xFF) == ShortMessage.CONTROL_CHANGE)
-							new ControlEventDialog(parent, short_event);
-						else if((short_event.command&0xFF) == ShortMessage.POLY_PRESSURE)
-							new KeyPressureEventDialog(parent, short_event);
-						else if((short_event.command&0xFF) == ShortMessage.CHANNEL_PRESSURE)
-							new ChannelPressureEventDialog(parent, short_event);
-						else if((short_event.command&0xFF) == ShortMessage.PITCH_BEND)
-							new PitchBendEventDialog(parent, short_event);
-					}
+					if(sprite == null)
+						return;
+
+					sprite.createDialog();
 
 					sortEventList();
 					populateEventList(self.event_list, sequence, event_list_model);

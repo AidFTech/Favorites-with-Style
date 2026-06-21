@@ -242,6 +242,11 @@ public class FWSEditorMainWindow extends JFrame {
 		JMenuItem menu_item_selection_properties = new JMenuItem("Selection Properties");
 		menu_selection.add(menu_item_selection_properties);
 
+		menu_selection.addSeparator();
+		
+		JMenuItem menu_item_selection_list = new JMenuItem("Selected Event List");
+		menu_selection.add(menu_item_selection_list);
+
 		JMenu menu_song = new JMenu("Song/Sequence");
 		main_menu_bar.add(menu_song);
 
@@ -662,6 +667,19 @@ public class FWSEditorMainWindow extends JFrame {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				song_viewport.openProperties(false);
+			}
+		});
+
+		menu_item_selection_list.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Sprite[] selection = song_viewport.getSelectedSprites();
+
+				ArrayList<FWSEvent> event_list = new ArrayList<>();
+				for(Sprite sprite: selection)
+					event_list.add(sprite.getEvent());
+
+				new EventListWindow(self, song_viewport.getActiveSequence(), event_list);
 			}
 		});
 

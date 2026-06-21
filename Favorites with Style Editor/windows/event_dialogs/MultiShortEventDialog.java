@@ -24,6 +24,8 @@ public class MultiShortEventDialog extends JDialog {
 	private static final long serialVersionUID = 7309390309223926412L;
 	private JSpinner spinner_channel;
 
+	private boolean refresh = false;
+
 	public MultiShortEventDialog(FWSEditorMainWindow parent, FWSEvent[] fws_events) {
 		super(parent, true);
 
@@ -124,6 +126,8 @@ public class MultiShortEventDialog extends JDialog {
 				SongViewPort vp = parent.getViewPort();
 				FWSSequence sequence = vp.getActiveSequence();
 
+				refresh = true;
+
 				byte new_channel = -1;
 				if(!checkbox_keep_channel.isSelected())
 					new_channel = (byte)((Integer)spinner_channel.getValue() - 1);
@@ -165,6 +169,11 @@ public class MultiShortEventDialog extends JDialog {
 		getContentPane().add(button_apply);
 		
 		this.setVisible(true);
+	}
+
+	/** Return whether "Apply" was clicked. */
+	public boolean getRefresh() {
+		return refresh;
 	}
 
 	/** Initialize the channel spinner. */

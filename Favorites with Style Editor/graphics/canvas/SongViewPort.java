@@ -927,6 +927,22 @@ public class SongViewPort extends JScrollPane {
 		return sprite_array;
 	}
 
+	/** Get the selected sprites in the viewport. */
+	public Sprite[] getSelectedSprites() {
+		Sprite[] all_sprites = getSprites();
+
+		ArrayList<Sprite> selected_list = new ArrayList<>();
+
+		for(Sprite sprite: all_sprites) {
+			if(sprite.getSelected())
+				selected_list.add(sprite);
+		}
+
+		Sprite[] selected = new Sprite[selected_list.size()];
+		selected_list.toArray(selected);
+		return selected;
+	}
+
 	/** Delete selected sprites. */
 	public void deleteSelectedSprites() {
 		deleteSelectedSprites(true);
