@@ -745,6 +745,9 @@ public class MIDIManager {
 					case JythonHandler.ARG_SONG_TPQ:
 						set_obj = Integer.valueOf(song.getSongSequence().getTPQ());
 						break;
+					case JythonHandler.ARG_FILEPATH:
+						set_obj = new PyString(controller.save_load_controller.getLastFilepath());
+						break;
 				}
 
 				interpreter.set("set_obj", set_obj);
@@ -1088,23 +1091,33 @@ public class MIDIManager {
 					case JythonHandler.ARG_CHORD_EVENTS:
 						{
 							ArrayList<FWSEvent> common_events = song.getSongSequence().getCommonEvents();
-							ArrayList<FWSChordEvent> chord_events = new ArrayList<>();
+							ArrayList<FWSEvent> chord_events = new ArrayList<>();
 							for(FWSEvent event: common_events) {
 								if(event instanceof FWSChordEvent)
 									chord_events.add((FWSChordEvent)event);
 							}
 
-							set_obj = chord_events;
+							set_obj = FWSEvent.createCopy(chord_events);
 						}
 						break;
 					case JythonHandler.ARG_SONG_EVENTS_MELODY:
-						set_obj = song.getSongSequence().getAllEvents();
+						set_obj = FWSEvent.createCopy(song.getSongSequence().getAllEvents());
 						break;
 					case JythonHandler.ARG_SONG_EVENTS_ALL:
 						{
 							FWSSequence full_sequence = FWSSequence.getFWSSequencefromSequence(ret_sequence);
+
+							ArrayList<FWSEvent> common_events = FWSEvent.createCopy(song.getSongSequence().getCommonEvents());
+							for(FWSEvent event: common_events) {
+								if(event instanceof FWSChordEvent || event instanceof FWSStyleChangeEvent)
+									full_sequence.addEvent(event);
+							}
+
 							set_obj = full_sequence.getAllEvents();
 						}
+						break;
+					case JythonHandler.ARG_FILEPATH:
+						set_obj = new PyString(controller.save_load_controller.getLastFilepath());
 						break;
 				}
 

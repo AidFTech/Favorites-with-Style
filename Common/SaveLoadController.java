@@ -734,6 +734,16 @@ public class SaveLoadController {
 		if(default_path != null && !default_path.contains("./.fwstmp"))
 			this.last_filepath = save_file.getParent();
 	}
+	
+	/** Get the most recent file path. */
+	public String getLastFilepath() {
+		return last_filepath;
+	}
+
+	/** Get the default data path. */
+	public String getDatapath() {
+		return data_path;
+	}
 
 	/** Get an XML from chord and style events. */
 	private static void getChordXML(ArrayList<FWSEvent> events, OutputStream output) throws ParserConfigurationException, TransformerException {

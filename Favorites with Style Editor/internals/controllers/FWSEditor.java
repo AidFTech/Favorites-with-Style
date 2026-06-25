@@ -90,11 +90,6 @@ public class FWSEditor extends FWS {
 		return this.main_window;
 	}
 
-	/** Get the loaded song. */
-	public FWSSong getLoadedSong() {
-		return this.loaded_song;
-	}
-
 	/** Get the active sequence. */
 	public FWSSequence getActiveSequence() {
 		return this.active_sequence;

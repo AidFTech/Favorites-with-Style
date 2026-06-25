@@ -12,6 +12,8 @@ public class FWSNoteEvent extends FWSEvent {
 	public byte note = middle_c, channel = 0, velocity = 100;
 	public long duration;
 
+	public byte finger = 0; //Bit 5 is high for a left crossover, bit 6 for a right crossover.
+
 	public FWSNoteEvent() {
 
 	}
@@ -22,6 +24,7 @@ public class FWSNoteEvent extends FWSEvent {
 		this.channel = c.channel;
 		this.velocity = c.velocity;
 		this.duration = c.duration;
+		this.finger = c.finger;
 	}
 
 	public byte[] getMIDIBytes() {

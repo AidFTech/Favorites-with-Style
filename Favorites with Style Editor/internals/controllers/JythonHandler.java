@@ -12,17 +12,22 @@ public class JythonHandler {
 								ARG_EXPORT_OPTIONS = "export_options", //Export options.
 								ARG_INSTRUMENT = "instrument", //Instrument name.
 
+								ARG_CONTROLLER = "controller", //The controller. USE SPARINGLY.
+								ARG_MAIN_WINDOW = "main_window", //The main window.
+
 								ARG_SONG_SHORT_TITLE = "short_title", //Short song title.
 								ARG_SONG_TITLE = "song_title", //Long song title.
 
 								ARG_SONG_TPQ = "tpq", //TPQ.
 								ARG_CURRENT_TICK = "current_tick", //The current song tick.
 
+								ARG_FILEPATH = "start_filepath", //The start filepath.
+
 								ARG_CHORD_EVENTS = "chord_events", //Chord event list.
 								ARG_SONG_EVENTS_MELODY = "melody_events", //All melody events.
 								ARG_SONG_EVENTS_ALL = "song_events", //All song events, including calculated style events.
 
-								//Only valid during calculatoin.
+								//Only valid during calculation.
 								ARG_CHORD_MAIN = "main_chord", //Main chord.
 								ARG_CHORD_BASS = "bass_chord", //Bass chord.
 								ARG_CHORD_INV = "chord_inv", //Chord inversion.

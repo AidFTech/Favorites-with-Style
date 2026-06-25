@@ -23,6 +23,7 @@ public abstract class FWS {
 	public static final int max_byte_size = 128;
 
 	protected SaveLoadController save_load_controller;
+	protected PluginController plugin_controller;
 	protected FWSSong loaded_song;
 	protected File loaded_song_file = null;
 	protected MIDIManager midi_manager;
@@ -46,6 +47,8 @@ public abstract class FWS {
 		interpreter.close();
 		
 		save_load_controller.initFWS();
+
+		plugin_controller = new PluginController(this);
 
 		newSong();
 	}
@@ -73,6 +76,11 @@ public abstract class FWS {
 		midi_manager.getPlayerOptions().song_melody_lh = new_song.getSongMetadata().melody_lh_channel;
 
 		loadSong(new_song);
+	}
+
+	/** Get the loaded song. */
+	public FWSSong getLoadedSong() {
+		return this.loaded_song;
 	}
 
 	/** Get the active instrument profile name. */
@@ -205,6 +213,11 @@ public abstract class FWS {
 	/** Get the MIDI manager. */
 	public MIDIManager getMidiManager() {
 		return this.midi_manager;
+	}
+
+	/** Get the plugin controller. */
+	public PluginController getPluginController() {
+		return this.plugin_controller;
 	}
 
 	/** Get the loaded song file reference. */

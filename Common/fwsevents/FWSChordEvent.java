@@ -12,6 +12,9 @@ public class FWSChordEvent extends FWSEvent {
 
 	public FWSChordEvent(FWSChordEvent c) {
 		super(c);
+		main_chord = new ChordBody(c.main_chord);
+		bass_chord = new ChordBody(c.bass_chord);
+		inversion = c.inversion;
 	}
 
 	@Override

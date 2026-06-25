@@ -12,6 +12,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 
 import controllers.FWSEditor;
+import controllers.PluginController;
 import fwsevents.FWSEvent;
 import fwsevents.FWSSequence;
 import infobox.InfoBox;
@@ -441,6 +442,20 @@ public class FWSEditorMainWindow extends JFrame {
 			}
 		});
 		menu_midi.add(menu_item_panic);
+
+		//Plugin menu.
+		JMenu menu_plugins = new JMenu("Plugins");
+		main_menu_bar.add(menu_plugins);
+
+		JMenuItem menu_item_plugin_refresh = new JMenuItem("Refresh");
+		menu_item_plugin_refresh.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				refreshPluginDropdown(menu_plugins, menu_item_plugin_refresh);
+			}
+		});
+
+		refreshPluginDropdown(menu_plugins, menu_item_plugin_refresh);
 		
 		//Add transport controls.
 		JButton button_stop = new JButton("");
@@ -1224,6 +1239,31 @@ public class FWSEditorMainWindow extends JFrame {
 			sel_index = 0;
 
 		dropdown_section.setSelectedIndex(sel_index);
+	}
+
+	/** Refresh the plugin dropdown. */
+	private void refreshPluginDropdown(JMenu menu_plugins, JMenuItem menu_plugin_refresh) {
+		menu_plugins.removeAll();
+
+		PluginController plugin_controller = controller.getPluginController();
+		plugin_controller.refresh();
+
+		String[] plugin_names = plugin_controller.getPluginNames();
+		for(String plugin_name: plugin_names) {
+			JMenuItem menu_item_plugin = new JMenuItem(plugin_name);
+			menu_item_plugin.addActionListener(new ActionListener() {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					final String set_plugin_name = plugin_name;
+					plugin_controller.runPlugin(set_plugin_name);
+				}
+			});
+
+			menu_plugins.add(menu_item_plugin);
+		}
+
+		menu_plugins.addSeparator();
+		menu_plugins.add(menu_plugin_refresh);
 	}
 
 	/** Add a popup menu. */
