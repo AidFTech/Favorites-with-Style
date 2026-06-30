@@ -10,9 +10,13 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 
 import canvas.SongViewPort;
+import dialogpanels.NoteFingerPanel;
 import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
 import main_window.FWSEditorMainWindow;
+import main_window.FWSEditorMainWindow.DisplayMode;
+import song.FWSSong;
+import song.FWSSongMetadata;
 import sprites.Sprite;
 
 import javax.swing.event.ChangeListener;
@@ -156,6 +160,71 @@ public class NoteEventDialog extends JDialog {
 		tick_panel.setBounds(12, 280, 326, 100);
 		getContentPane().add(tick_panel);
 
+		NoteFingerPanel finger_graphic = null;
+		JCheckBox checkbox_cross_left = null, checkbox_cross_right = null;
+
+		do {
+			if(parent.getDisplayMode() == DisplayMode.DISPLAY_MODE_SONG) {
+				FWSSong song = parent.getController().getLoadedSong();
+
+				if(song == null)
+					break;
+
+				FWSSongMetadata song_meta = song.getSongMetadata();
+
+				if(fws_event.channel == song_meta.melody_rh_channel)
+					finger_graphic = new NoteFingerPanel(fws_event.finger, true);
+				else if(fws_event.channel == song_meta.melody_lh_channel)
+					finger_graphic = new NoteFingerPanel(fws_event.finger, false);
+
+				if(finger_graphic == null)
+					break;
+
+				checkbox_cross_left = new JCheckBox("←");
+				checkbox_cross_right = new JCheckBox("→");
+			}
+		} while(false);
+
+		final JCheckBox set_checkbox_cross_left = checkbox_cross_left, set_checkbox_cross_right = checkbox_cross_right;
+
+		if(finger_graphic != null) {
+			finger_graphic.setBounds(200, 120, finger_graphic.getWidth(), finger_graphic.getHeight());
+			getContentPane().add(finger_graphic);
+
+			if(checkbox_cross_left != null) {
+				checkbox_cross_left.setSelected((fws_event.finger&0x20) != 0);
+				checkbox_cross_left.setBounds(finger_graphic.getX() + finger_graphic.getWidth() + 12, 115, 50, 35);
+				checkbox_cross_left.setToolTipText("Check if this finger should cross over the last note, moving left.");
+				getContentPane().add(checkbox_cross_left);
+			}
+			if(checkbox_cross_right != null) {
+				checkbox_cross_right.setSelected((fws_event.finger&0x40) != 0);
+				checkbox_cross_right.setBounds(finger_graphic.getX() + finger_graphic.getWidth() + 12, 150, 50, 35);
+				checkbox_cross_right.setToolTipText("Check if this finger should cross over the last note, moving right.");
+				getContentPane().add(checkbox_cross_right);
+			}
+
+			if(checkbox_cross_left != null && checkbox_cross_right != null) {
+				checkbox_cross_left.addActionListener(new ActionListener() {
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						if(set_checkbox_cross_left.isSelected())
+							set_checkbox_cross_right.setSelected(false);
+					}
+				});
+
+				checkbox_cross_right.addActionListener(new ActionListener() {
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						if(set_checkbox_cross_right.isSelected())
+							set_checkbox_cross_left.setSelected(false);
+					}
+				});
+			}
+		}
+
+		final NoteFingerPanel set_finger_graphic = finger_graphic;
+
 		NoteEventDialog self = this;
 
 		JButton button_cancel = new JButton("Cancel");
@@ -187,6 +256,14 @@ public class NoteEventDialog extends JDialog {
 				fws_event.velocity = ((Integer)spinner_velocity.getValue()).byteValue();
 				fws_event.duration = (Long)spinner_duration.getValue();
 				fws_event.channel = (byte)((Integer)spinner_channel.getValue() - 1);
+
+				if(set_finger_graphic != null) {
+					fws_event.finger = set_finger_graphic.getFinger();
+					if(set_checkbox_cross_left != null)
+						fws_event.finger |= set_checkbox_cross_left.isSelected() ? 0x20 : 0;
+					if(set_checkbox_cross_right != null)
+						fws_event.finger |= set_checkbox_cross_right.isSelected() ? 0x40 : 0;
+				}
 
 				fws_event.tick = new_tick;
 				if(replace)

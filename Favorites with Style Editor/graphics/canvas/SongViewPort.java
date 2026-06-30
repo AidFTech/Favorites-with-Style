@@ -46,6 +46,7 @@ import main_window.NoteToggleButton;
 import main_window.FWSEditorMainWindow.DisplayMode;
 import options.MIDIPlayerOptions;
 import options.SelectionOptions;
+import settings_dialogs.TupletConfigurationWindow;
 import sprites.Sprite;
 import sprites.SpriteChordEvent;
 import sprites.SpriteKeyEvent;
@@ -89,6 +90,9 @@ public class SongViewPort extends JScrollPane {
 
 	private CanvasOptionGroup canvas_options;
 	private SelectionOptions selection_options = new SelectionOptions();
+
+	private int tuplet_reference = 8; //8 per quarter note.
+	private int tuplet_den = 3;
 
 	public SongViewPort(FWSEditor controller, FWSEditorMainWindow main_window, int x, int y, Dimension d) {
 		super();
@@ -792,6 +796,29 @@ public class SongViewPort extends JScrollPane {
 			return canvas_options.note_place_group.getSelectedToggle();
 		else
 			return null;
+	}
+
+	/** Get the defined tuplet ratio.. */
+	public double getTupletRatio() {
+		return (this.tuplet_reference/8.0)/this.tuplet_den;
+	}
+
+	/** Open a tuplet set window. */
+	public void openTupletWindow() {
+		final boolean reset_snap =  snap == (int)(active_sequence.getTPQ()*getTupletRatio());
+		
+		TupletConfigurationWindow configuration_window = new TupletConfigurationWindow(main_window, tuplet_reference, tuplet_den);
+		if(configuration_window.getApplied()) {
+			final int[] new_nums = configuration_window.getSetValues();
+			if(new_nums == null || new_nums.length != 2)
+				return;
+
+			tuplet_reference = new_nums[0];
+			tuplet_den = new_nums[1];
+
+			if(reset_snap)
+				snap = (int)(active_sequence.getTPQ()*getTupletRatio());
+		}
 	}
 
 	/** Get whether the dot is selected. */

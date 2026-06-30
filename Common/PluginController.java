@@ -21,10 +21,12 @@ import org.python.util.PythonInterpreter;
 
 import fwsevents.FWSChordEvent;
 import fwsevents.FWSEvent;
+import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
 import fwsevents.FWSStyleChangeEvent;
 import options.MIDIExportOptions;
 import song.FWSSong;
+import song.FWSSongMetadata;
 
 public class PluginController {
 	private FWS controller;
@@ -195,13 +197,13 @@ public class PluginController {
 				case JythonHandler.ARG_CHORD_EVENTS:
 					{
 						ArrayList<FWSEvent> common_events = sequence.getCommonEvents();
-						ArrayList<FWSEvent> chord_events = new ArrayList<>();
+						ArrayList<FWSEvent> style_events = new ArrayList<>();
 						for(FWSEvent event: common_events) {
-							if(event instanceof FWSChordEvent)
-								chord_events.add((FWSChordEvent)event);
+							if(event instanceof FWSChordEvent || event instanceof FWSStyleChangeEvent)
+								style_events.add(event);
 						}
 
-						set_obj = FWSEvent.createCopy(chord_events);
+						set_obj = FWSEvent.createCopy(style_events);
 					}
 					break;
 				case JythonHandler.ARG_SONG_EVENTS_MELODY:
@@ -220,10 +222,47 @@ public class PluginController {
 
 							Sequence midi_sequence = midi_manager.getSongMIDISequence(song, export_options);
 							FWSSequence full_sequence = FWSSequence.getFWSSequencefromSequence(midi_sequence);
+
+							FWSSongMetadata metadata = song.getSongMetadata();
+							final int melody_rh_channel = metadata.melody_rh_channel, melody_lh_channel = metadata.melody_lh_channel;
 							
 							ArrayList<FWSEvent> midi_events = full_sequence.getAllEvents();
 							for(FWSEvent event: style_events)
 								FWSEvent.insertEvent(midi_events, event);
+
+							ArrayList<FWSEvent> rh_events = sequence.getChannelEvents(melody_rh_channel);
+							for(FWSEvent event: rh_events) {
+								if(event instanceof FWSNoteEvent) {
+									FWSNoteEvent ref_note = (FWSNoteEvent)event;
+									for(FWSEvent test_event: midi_events) {
+										if(!(test_event instanceof FWSNoteEvent))
+											continue;
+
+										FWSNoteEvent test_note = (FWSNoteEvent)test_event;
+										if(test_note.note == ref_note.note && test_note.channel == export_options.export_melody_rh && test_note.tick == ref_note.tick) {
+											test_note.finger = ref_note.finger;
+											break;
+										}
+									}
+								}
+							}
+
+							ArrayList<FWSEvent> lh_events = sequence.getChannelEvents(melody_lh_channel);
+							for(FWSEvent event: lh_events) {
+								if(event instanceof FWSNoteEvent) {
+									FWSNoteEvent ref_note = (FWSNoteEvent)event;
+									for(FWSEvent test_event: midi_events) {
+										if(!(test_event instanceof FWSNoteEvent))
+											continue;
+
+										FWSNoteEvent test_note = (FWSNoteEvent)test_event;
+										if(test_note.note == ref_note.note && test_note.channel == export_options.export_melody_lh && test_note.tick == ref_note.tick) {
+											test_note.finger = ref_note.finger;
+											break;
+										}
+									}
+								}
+							}
 
 							set_obj = midi_events;
 

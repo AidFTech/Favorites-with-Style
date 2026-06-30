@@ -393,7 +393,7 @@ public class SongPanelPianoRoll extends JLayeredPane {
 			ratio = 0.125;
 			break;
 		case NOTE_TOGGLE_TUPLET:
-			ratio = 1.0/3.0; //TODO: Check the defined tuplet setting.
+			ratio = vp_parent.getTupletRatio();
 			break;
 		case NOTE_TOGGLE_CUSTOM:
 			ratio = (double)vp_parent.getCustomTick()/vp_parent.getActiveSequence().getTPQ();

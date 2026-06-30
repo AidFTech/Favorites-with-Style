@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -42,6 +43,7 @@ import org.ini4j.Ini;
 
 import fwsevents.FWSChordEvent;
 import fwsevents.FWSEvent;
+import fwsevents.FWSNoteEvent;
 import fwsevents.FWSSequence;
 import fwsevents.FWSStyleChangeEvent;
 import song.FWSSong;
@@ -268,6 +270,56 @@ public class SaveLoadController {
 		Sequence song_midi_sequence = song_sequence.getMidiSequence();
 		ArrayList<FWSEvent> song_common_events = song_sequence.getCommonEvents();
 
+		ArrayList<FWSEvent> rh_note_events = song_sequence.getChannelEvents(song.getSongMetadata().melody_rh_channel);
+		ArrayList<FWSEvent> lh_note_events = song_sequence.getChannelEvents(song.getSongMetadata().melody_lh_channel);
+
+		ArrayList<AbstractMap.SimpleEntry<Long, Byte>> rh_fingers = new ArrayList<>();
+		ArrayList<AbstractMap.SimpleEntry<Long, Byte>> lh_fingers = new ArrayList<>();
+
+		for(FWSEvent event: rh_note_events) {
+			if(!(event instanceof FWSNoteEvent))
+				continue;
+
+			FWSNoteEvent note_event = (FWSNoteEvent)event;
+			if((note_event.finger&0xF) <= 0)
+				continue;
+
+			boolean found = false;
+			for(AbstractMap.SimpleEntry<Long, Byte> finger_map: rh_fingers) {
+				if(finger_map.getKey() == note_event.tick) {
+					byte finger = finger_map.getValue();
+					finger_map.setValue((byte)(finger | (1<<((note_event.finger&0xF) - 1)) | (note_event.finger&0x60)));
+					found = true;
+					break;
+				}
+			}
+
+			if(!found)
+				rh_fingers.add(new AbstractMap.SimpleEntry<Long, Byte>(note_event.tick, (byte)((1<<((note_event.finger&0xF) - 1)) | (note_event.finger&0x60))));
+		}
+
+		for(FWSEvent event: lh_note_events) {
+			if(!(event instanceof FWSNoteEvent))
+				continue;
+
+			FWSNoteEvent note_event = (FWSNoteEvent)event;
+			if((note_event.finger&0xF) <= 0)
+				continue;
+
+			boolean found = false;
+			for(AbstractMap.SimpleEntry<Long, Byte> finger_map: lh_fingers) {
+				if(finger_map.getKey() == note_event.tick) {
+					byte finger = finger_map.getValue();
+					finger_map.setValue((byte)(finger | (1<<((note_event.finger&0xF) - 1)) | (note_event.finger&0x60)));
+					found = true;
+					break;
+				}
+			}
+
+			if(!found)
+				lh_fingers.add(new AbstractMap.SimpleEntry<Long, Byte>(note_event.tick, (byte)((1<<((note_event.finger&0xF) - 1)) | (note_event.finger&0x60))));
+		}
+
 		final String tmp_dir = "./.fwstmp", style_dir = "/styles";
 		Path style_path = Paths.get(tmp_dir + style_dir);
 
@@ -294,6 +346,11 @@ public class SaveLoadController {
 
 			FileOutputStream meta_file = new FileOutputStream(tmp_dir + "/song.xml");
 			getSongInfoXML(song, meta_file);
+
+			if(lh_fingers.size() > 0 || rh_fingers.size() > 0) {
+				FileOutputStream fingering_file = new FileOutputStream(tmp_dir + "/fingering.xml");
+				getFingeringXML(rh_fingers, lh_fingers, fingering_file);
+			}
 
 			if(song.getSubstitutionProfileList().length > 0) {
 				FileOutputStream sub_file = new FileOutputStream(tmp_dir + "/subs.xml");
@@ -357,6 +414,8 @@ public class SaveLoadController {
 	/** Load song events recursively. */
 	private void loadSongEvents(String directory, File[] song_files, FWSSong song) throws ParserConfigurationException, SAXException, IOException {
 		FWSSequence melody_sequence = song.getSongSequence();
+		ArrayList<AbstractMap.SimpleEntry<Long, Byte>> rh_fingering = new ArrayList<>();
+		ArrayList<AbstractMap.SimpleEntry<Long, Byte>> lh_fingering = new ArrayList<>();
 
 		for(int i=0;i<song_files.length;i+=1) {
 			if(song_files[i].isDirectory()) {
@@ -374,6 +433,131 @@ public class SaveLoadController {
 				loadChordInfoXML(song, song_files[i]);
 			} else if(song_files[i].getName().equalsIgnoreCase("SUBS.XML")) { //Substitutions.
 				loadSubsXML(song, song_files[i]);
+			} else if(song_files[i].getName().equalsIgnoreCase("FINGERING.XML")) { //Fingering.
+				loadFingeringXML(rh_fingering, lh_fingering, song_files[i]);
+			}
+		}
+
+		ArrayList<FWSEvent> rh_events = melody_sequence.getChannelEvents(song.getSongMetadata().melody_rh_channel);
+		ArrayList<FWSEvent> lh_events = melody_sequence.getChannelEvents(song.getSongMetadata().melody_lh_channel);
+
+		for(AbstractMap.SimpleEntry<Long, Byte> finger_map: rh_fingering) {
+			final long tick = finger_map.getKey();
+			final byte finger = finger_map.getValue();
+
+			ArrayList<FWSNoteEvent> relevant = new ArrayList<>();
+			for(FWSEvent event: rh_events) {
+				if(!(event instanceof FWSNoteEvent))
+					continue;
+
+				if(event.tick == tick)
+					relevant.add((FWSNoteEvent)event);
+
+				if(event.tick > tick)
+					break;
+			}
+
+			if(relevant.size() <= 0)
+				continue;
+
+			byte[] note_map = {-1, -1, -1, -1, -1};
+			ArrayList<Byte> finger_notes = new ArrayList<>();
+			for(FWSNoteEvent note: relevant) {
+				int note_index = -1;
+				for(int i=0;i<finger_notes.size();i+=1) {
+					if(finger_notes.get(i) > note.note) {
+						note_index = i;
+						break;
+					}
+				}
+
+				if(note_index >= 0)
+					finger_notes.add(note_index, note.note);
+				else
+					finger_notes.add(note.note);
+			}
+
+			int pointer = 0;
+			for(int i=0;i<note_map.length;i+=1) {
+				if((finger&(1<<i)) == 0)
+					continue;
+
+				if(pointer >= finger_notes.size())
+					break;
+
+				note_map[i] = finger_notes.get(pointer);
+				pointer += 1;
+			}
+
+			for(FWSNoteEvent note: relevant) {
+				for(int i=0;i<note_map.length;i+=1) {
+					if(note_map[i] == note.note) {
+						note.finger = (byte)(i + 1);
+						note.finger |= (finger&0x60);
+
+						break;
+					}
+				}
+			}
+		}
+
+		for(AbstractMap.SimpleEntry<Long, Byte> finger_map: lh_fingering) {
+			final long tick = finger_map.getKey();
+			final byte finger = finger_map.getValue();
+
+			ArrayList<FWSNoteEvent> relevant = new ArrayList<>();
+			for(FWSEvent event: lh_events) {
+				if(!(event instanceof FWSNoteEvent))
+					continue;
+
+				if(event.tick == tick)
+					relevant.add((FWSNoteEvent)event);
+
+				if(event.tick > tick)
+					break;
+			}
+
+			if(relevant.size() <= 0)
+				continue;
+
+			byte[] note_map = {-1, -1, -1, -1, -1};
+			ArrayList<Byte> finger_notes = new ArrayList<>();
+			for(FWSNoteEvent note: relevant) {
+				int note_index = -1;
+				for(int i=0;i<finger_notes.size();i+=1) {
+					if(finger_notes.get(i) < note.note) {
+						note_index = i;
+						break;
+					}
+				}
+
+				if(note_index >= 0)
+					finger_notes.add(note_index, note.note);
+				else
+					finger_notes.add(note.note);
+			}
+
+			int pointer = 0;
+			for(int i=0;i<note_map.length;i+=1) {
+				if((finger&(1<<i)) == 0)
+					continue;
+
+				if(pointer >= finger_notes.size())
+					break;
+
+				note_map[i] = finger_notes.get(pointer);
+				pointer += 1;
+			}
+
+			for(FWSNoteEvent note: relevant) {
+				for(int i=0;i<note_map.length;i+=1) {
+					if(note_map[i] == note.note) {
+						note.finger = (byte)i;
+						note.finger |= (finger&0x60);
+
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -537,16 +721,18 @@ public class SaveLoadController {
 		}
 
 		if(file_to_zip.isDirectory()) {
-			if(filename.endsWith("/")) {
-				zip_out.putNextEntry(new ZipEntry(filename));
-				zip_out.closeEntry();
-			} else {
-				zip_out.putNextEntry(new ZipEntry(filename + "/"));
-				zip_out.closeEntry();
+			if(!filename.isEmpty()) {
+				if(filename.endsWith("/")) {
+					zip_out.putNextEntry(new ZipEntry(filename));
+					zip_out.closeEntry();
+				} else {
+					zip_out.putNextEntry(new ZipEntry(filename + "/"));
+					zip_out.closeEntry();
+				}
 			}
 			File[] subfiles = file_to_zip.listFiles();
 			for(int i=0;i<subfiles.length;i+=1)
-				zipFile(subfiles[i], filename + "/" + subfiles[i].getName(), zip_out);
+				zipFile(subfiles[i], filename + (!filename.isEmpty() ? "/" : "") + subfiles[i].getName(), zip_out);
 			return;
 		}
 		FileInputStream input_stream = new FileInputStream(file_to_zip);
@@ -885,6 +1071,51 @@ public class SaveLoadController {
 		transformer.transform(source, result);
 	}
 
+	/** Get an XML from a fingering list. */
+	private static void getFingeringXML(ArrayList<AbstractMap.SimpleEntry<Long, Byte>> rh_events, ArrayList<AbstractMap.SimpleEntry<Long, Byte>> lh_events, OutputStream output) throws ParserConfigurationException, TransformerException {
+		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder doc_builder = doc_factory.newDocumentBuilder();
+		
+		Document song_doc = doc_builder.newDocument();
+		Element root_element = song_doc.createElement("Fingering");
+		song_doc.appendChild(root_element);
+
+		for(AbstractMap.SimpleEntry<Long, Byte> entry: rh_events) {
+			Element finger_element = song_doc.createElement("Right");
+			root_element.appendChild(finger_element);
+			
+			Element finger_map = song_doc.createElement("Finger");
+			finger_map.setTextContent(Byte.toString(entry.getValue()));
+			finger_element.appendChild(finger_map);
+
+			Element tick = song_doc.createElement("Tick");
+			tick.setTextContent(Long.toString(entry.getKey()));
+			finger_element.appendChild(tick);
+		}
+
+		for(AbstractMap.SimpleEntry<Long, Byte> entry: lh_events) {
+			Element finger_element = song_doc.createElement("Left");
+			root_element.appendChild(finger_element);
+
+			Element finger_map = song_doc.createElement("Finger");
+			finger_map.setTextContent(Byte.toString(entry.getValue()));
+			finger_element.appendChild(finger_map);
+
+			Element tick = song_doc.createElement("Tick");
+			tick.setTextContent(Long.toString(entry.getKey()));
+			finger_element.appendChild(tick);
+		}
+
+		TransformerFactory transformer_factory = TransformerFactory.newInstance();
+		Transformer transformer = transformer_factory.newTransformer();
+
+		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+		DOMSource source = new DOMSource(song_doc);
+		StreamResult result = new StreamResult(output);
+
+		transformer.transform(source, result);
+	}
+
 	/** Get an XML from song substitutions. */
 	private static void getSubsXML(FWSSong song, OutputStream output) throws ParserConfigurationException, TransformerException {
 		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
@@ -1071,6 +1302,60 @@ public class SaveLoadController {
 
 		for(int i=0;i<change_events.size();i+=1)
 			song.getSongSequence().addEvent(change_events.get(i));
+	}
+
+	/** Get fingering data from an XML. */
+	private static void loadFingeringXML(ArrayList<AbstractMap.SimpleEntry<Long, Byte>> rh_events, ArrayList<AbstractMap.SimpleEntry<Long, Byte>> lh_events, File input) throws ParserConfigurationException, SAXException, IOException {
+		rh_events.clear();
+		lh_events.clear();
+
+		DocumentBuilderFactory doc_factory = DocumentBuilderFactory.newInstance();
+		DocumentBuilder doc_builder = doc_factory.newDocumentBuilder();
+
+		Document sub_doc = doc_builder.parse(input);
+		sub_doc.getDocumentElement().normalize();
+
+		Element root = sub_doc.getDocumentElement();
+
+		NodeList finger_nodes = root.getChildNodes();
+		final int len = finger_nodes.getLength();
+
+		for(int i=0;i<len;i+=1) {
+			Node item = finger_nodes.item(i);
+			if(item.getNodeType() == Node.ELEMENT_NODE) {
+				Element element = (Element)item;
+
+				byte finger = 0;
+				long tick = -1;
+
+				NodeList finger_event_nodes = element.getChildNodes();
+				final int flen = finger_event_nodes.getLength();
+
+				for(int j=0;j<flen;j+=1) {
+					Node f_item = finger_event_nodes.item(j);
+						
+					if(f_item == null)
+						continue;
+					
+					if(f_item.getNodeType() == Node.ELEMENT_NODE) {
+						Element f_element = (Element)f_item;
+
+						if(f_element.getNodeName().equalsIgnoreCase("FINGER"))
+							finger = (byte)Integer.parseInt(f_element.getTextContent());
+						else if(f_element.getNodeName().equalsIgnoreCase("TICK"))
+							tick = Long.parseLong(f_element.getTextContent());
+					}
+				}
+
+				if(finger == 0 || tick < 0)
+					continue;
+
+				if(element.getNodeName().equalsIgnoreCase("RIGHT"))
+					rh_events.add(new AbstractMap.SimpleEntry<Long, Byte>(tick, finger));
+				else
+					lh_events.add(new AbstractMap.SimpleEntry<Long, Byte>(tick, finger));
+			}
+		}
 	}
 
 	/** Get song substitutions from an XML. */

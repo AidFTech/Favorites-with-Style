@@ -848,8 +848,36 @@ public class FWSEditorMainWindow extends JFrame {
 		});
 		menu_snap.add(snap_button_thirtysecond);
 
+		JRadioButtonMenuItem snap_button_tuplet = new JRadioButtonMenuItem("Tuplet");
+		snap_button_tuplet.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/icon_tuplet_16.png")));
+		snap_button_tuplet.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				FWSSequence sequence = song_viewport.getActiveSequence();
+				if(sequence == null)
+					return;
+
+				song_viewport.setSnap((int)(sequence.getTPQ()*song_viewport.getTupletRatio()));
+			}
+		});
+		menu_snap.add(snap_button_tuplet);
+
+		JRadioButtonMenuItem snap_button_custom = new JRadioButtonMenuItem("Custom");
+		snap_button_custom.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/icon_custom_16.png")));
+		snap_button_custom.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				FWSSequence sequence = song_viewport.getActiveSequence();
+				if(sequence == null)
+					return;
+
+				song_viewport.setSnap(((Long)spinner_note_len.getValue()).intValue());
+			}
+		});
+		menu_snap.add(snap_button_custom);
+
 		ButtonGroup snap_group = new ButtonGroup();
 		snap_group.add(snap_button_free);
+		snap_group.add(snap_button_custom);
+		snap_group.add(snap_button_tuplet);
 		snap_group.add(snap_button_quarter);
 		snap_group.add(snap_button_eighth);
 		snap_group.add(snap_button_sixteenth);
@@ -876,6 +904,10 @@ public class FWSEditorMainWindow extends JFrame {
 					snap_button_sixteenth.setSelected(true);
 				else if(snap == tpq/8)
 					snap_button_thirtysecond.setSelected(true);
+				else if(snap == (int)(tpq*song_viewport.getTupletRatio()))
+					snap_button_tuplet.setSelected(true);
+				else if(snap == (Long)spinner_note_len.getValue())
+					snap_button_custom.setSelected(true);
 				else if(snap == 1)
 					snap_button_free.setSelected(true);
 
@@ -883,6 +915,18 @@ public class FWSEditorMainWindow extends JFrame {
 			}
 		});
 		toolbar.add(button_snap);
+
+		JButton button_tuplet_config = new JButton("");
+		button_tuplet_config.setFocusable(false);
+		button_tuplet_config.setIcon(new ImageIcon(FWSEditorMainWindow.class.getResource("/icons/icon_tupletconfig.png")));
+		button_tuplet_config.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				song_viewport.openTupletWindow();
+			}
+		});
+		button_tuplet_config.setToolTipText("Configure the tuplet reference note and ratio.");
+		toolbar.add(button_tuplet_config);
 		
 		JLabel label_velocity = new JLabel("Velocity");
 		label_velocity.setHorizontalAlignment(SwingConstants.RIGHT);
