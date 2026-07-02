@@ -125,6 +125,10 @@ public class SongPanelStyleHeader extends JPanel {
 								}
 								new_style.tick = tick;
 								new StyleChangeEventDialog(vp_parent.getMainWindow(), new_style);
+
+								if(active_sequence.getEvent(new_style)) { //Style was added successfully.
+									addAdditionalStyleEvents(active_sequence, new_style);
+								}
 							}
 							break;
 						case tempo_y:
@@ -236,6 +240,123 @@ public class SongPanelStyleHeader extends JPanel {
 		}
 		my = y/FWS.event_height*FWS.event_height;
 		repaint();
+	}
+
+	/** Add additional style events as needed. */
+	private void addAdditionalStyleEvents(FWSSequence active_sequence, FWSStyleChangeEvent style_event) {
+		if(controller.getLoadedSong() == null)
+			return;
+
+		if(controller.getLoadedSong().getStyle(style_event.style_name) == null)
+			return;
+
+		String[] sections = controller.getLoadedSong().getStyle(style_event.style_name).getOrderedSectionNames();
+
+		final String section_name = style_event.section_name;
+		if(section_name.toUpperCase().contains("FILL IN") || section_name.toUpperCase().contains("FILL-IN")) {
+			final int f_index = section_name.toUpperCase().indexOf("FILL");
+			String next_section = section_name.substring(0, f_index).trim();
+			if(next_section.isEmpty())
+				next_section = section_name.substring(f_index+"FILL IN".length()).trim();
+
+			if(next_section.isEmpty())
+				return;
+
+			String set_section = "";
+
+			if(next_section.length() == 2) { //Yamaha fill-in.
+				for(String section: sections) {
+					final String test_section_name = section;
+					if(section.toUpperCase().contains("MAIN")) {
+						section = section.substring(section.toUpperCase().indexOf("MAIN") + 4).trim();
+						if(section.endsWith(String.valueOf(next_section.charAt(1)))) {
+							set_section = test_section_name;
+							break;
+						}
+					}
+				}
+			} else {
+				for(String section: sections) {
+					if(section.toUpperCase().contains(next_section.toUpperCase()) &&
+					!section.toUpperCase().contains("FILL IN") &&
+					!section.toUpperCase().contains("FILL-IN")) {
+						set_section = section;
+						break;
+					}
+				}
+			}
+
+			if(!set_section.isEmpty()) {
+				FWSSequence original_sequence = controller.getLoadedSong().getStyle(style_event.style_name).getSection(section_name);
+				final long original_section_length = original_sequence.getSequenceLength() - (style_event.style_tick > 0 ? style_event.style_tick : 0);
+
+				final long next_change_tick = style_event.tick + original_section_length*active_sequence.getTPQ()/original_sequence.getTPQ();
+				
+				FWSStyleChangeEvent new_style = new FWSStyleChangeEvent(style_event);
+				new_style.tick = next_change_tick;
+				new_style.style_tick = 0;
+				new_style.section_name = set_section;
+
+				if(active_sequence.getStyleAt(next_change_tick) == style_event) {
+					active_sequence.addEvent(new_style);
+					vp_parent.addSprite(new_style);
+				}
+			}
+		} else if(section_name.toUpperCase().contains("INTRO")) {
+			FWSSequence original_sequence = controller.getLoadedSong().getStyle(style_event.style_name).getSection(section_name);
+			final long original_section_length = original_sequence.getSequenceLength() - (style_event.style_tick > 0 ? style_event.style_tick : 0);
+
+			final long next_change_tick = style_event.tick + original_section_length*active_sequence.getTPQ()/original_sequence.getTPQ();
+			String next_section = "";
+
+			if(!section_name.substring(section_name.toUpperCase().indexOf("INTRO") + "INTRO".length()).trim().isEmpty()) {
+				final String section_letter = section_name.substring(section_name.toUpperCase().indexOf("INTRO") + "INTRO".length()).trim();
+				for(String section: sections) {
+					if(!section.toUpperCase().contains("INTRO") && (!section.toUpperCase().contains("ENDING") &&
+					!section.toUpperCase().contains("FILL-IN") && !section.toUpperCase().contains("FILL IN"))) {
+						if(section.endsWith(section_letter)) {
+							next_section = section;
+							break;
+						}
+					}
+				}
+			}
+			if(next_section.isEmpty()) { 
+				for(String section: sections) {
+					if(!section.toUpperCase().contains("INTRO") && (!section.toUpperCase().contains("ENDING") &&
+					!section.toUpperCase().contains("FILL-IN") && !section.toUpperCase().contains("FILL IN"))) {
+						next_section = section;
+						break;
+					}
+				}
+			}
+
+			if(!next_section.isEmpty()) {
+				FWSStyleChangeEvent new_style = new FWSStyleChangeEvent(style_event);
+				new_style.tick = next_change_tick;
+				new_style.style_tick = 0;
+				new_style.section_name = next_section;
+
+				if(active_sequence.getStyleAt(next_change_tick) == style_event) {
+					active_sequence.addEvent(new_style);
+					vp_parent.addSprite(new_style);
+				}
+			}
+		} else if(section_name.toUpperCase().contains("ENDING")) {
+			FWSSequence original_sequence = controller.getLoadedSong().getStyle(style_event.style_name).getSection(section_name);
+			final long original_section_length = original_sequence.getSequenceLength() - (style_event.style_tick > 0 ? style_event.style_tick : 0);
+
+			final long next_change_tick = style_event.tick + original_section_length*active_sequence.getTPQ()/original_sequence.getTPQ();
+
+			FWSStyleChangeEvent new_style = new FWSStyleChangeEvent();
+			new_style.tick = next_change_tick;
+			new_style.style_tick = 0;
+
+			if(active_sequence.getStyleAt(next_change_tick) == style_event) {
+				active_sequence.addEvent(new_style);
+				vp_parent.addSprite(new_style);
+			}
+		}
 	}
 
 	public void paintComponent(Graphics g) {
